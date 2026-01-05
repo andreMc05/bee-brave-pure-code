@@ -1,0 +1,2808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Beehive Construction Simulation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #10131a;
+      --panel: rgba(15, 17, 25, 0.6);
+      --text: #fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #18202e 0%, #0b0d11 60%, #020203 100%);
+      color: var(--text);
+      overflow: hidden;
+    }
+    #ui {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      padding: 12px 20px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    #ui h1 {
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffe082 0%, #ffb300 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+    .stat-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.6;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .score-display {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffe082;
+      text-shadow: 0 0 10px rgba(255, 224, 130, 0.5);
+      white-space: nowrap;
+    }
+    .health-shield-container {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+    }
+    .bar-container {
+      position: relative;
+      min-width: 120px;
+    }
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .bar-label .value {
+      color: #fff;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.2s ease, background 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .bar-fill.shield {
+      background: linear-gradient(90deg, #64c8ff 0%, #4da6ff 100%);
+    }
+    .bar-fill.shield.low {
+      background: linear-gradient(90deg, #ffc864 0%, #ffb84d 100%);
+    }
+    .bar-fill.health {
+      background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+    }
+    .bar-fill.health.medium {
+      background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+    }
+    .bar-fill.health.low {
+      background: linear-gradient(90deg, #f44336 0%, #d32f2f 100%);
+    }
+    .weapons-section {
+      border-left: 1px solid rgba(255,255,255,0.1);
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .weapons-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.6;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .weapons-grid {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+    }
+    .weapon-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 6px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      min-width: 50px;
+    }
+    .weapon-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .weapon-card.selected {
+      background: rgba(255, 179, 0, 0.2);
+      border-color: #ffb300;
+      box-shadow: 0 0 12px rgba(255, 179, 0, 0.4);
+    }
+    .weapon-card.empty {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .weapon-icon {
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+    .weapon-name {
+      font-size: 8px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .weapon-count {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffe082;
+    }
+    .weapon-card.empty .weapon-count {
+      color: rgba(255, 255, 255, 0.3);
+    }
+    .selected-indicator {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 12px;
+      height: 12px;
+      background: #ffb300;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 0, 0, 0.8);
+      box-shadow: 0 0 8px rgba(255, 179, 0, 0.8);
+    }
+    #legend {
+      font-size: 10px;
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.03);
+      padding: 2px 6px;
+      border-radius: 99px;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot.hex { background: rgba(255, 236, 179, 0.8); }
+    .dot.bee { background: #ffe082; }
+    .dot.honey { background: #ffb300; }
+    .dot.flower { background: #82b1ff; }
+    canvas { display: block; }
+    #gameOver {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(5px);
+    }
+    #gameOver.show {
+      display: flex;
+    }
+    #gameOver h2 {
+      font-size: 48px;
+      margin: 0 0 20px;
+      color: #ff4444;
+      text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+    }
+    #gameOver p {
+      font-size: 18px;
+      margin: 0 0 30px;
+      opacity: 0.9;
+    }
+    #gameOver .button-container {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #restartBtn, #settingsBtn {
+      padding: 12px 24px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #restartBtn:hover, #settingsBtn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    #startScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+      padding: 40px 20px;
+    }
+    #startScreen.hidden {
+      display: none;
+    }
+    #startScreenContent {
+      max-width: 600px;
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 40px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    #startScreen h1 {
+      font-size: 56px;
+      margin: 0 0 10px;
+      text-align: center;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffe082 0%, #ffb300 50%, #ff9800 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(255, 179, 0, 0.5);
+    }
+    #startScreen .subtitle {
+      text-align: center;
+      font-size: 16px;
+      opacity: 0.7;
+      margin-bottom: 40px;
+    }
+    #startScreen .section {
+      margin-bottom: 30px;
+    }
+    #startScreen .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #startScreen .control {
+      margin-bottom: 15px;
+    }
+    #startScreen .control label {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    #startScreen .controls-info {
+      font-size: 12px;
+      line-height: 1.8;
+      opacity: 0.8;
+    }
+    #startScreen .controls-info strong {
+      color: #ffe082;
+      font-weight: 600;
+    }
+    #startScreen .legend-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    #startScreen .badge {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
+    #startBtn {
+      width: 100%;
+      padding: 16px 32px;
+      font-size: 20px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #ffb300 0%, #ff9800 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 30px;
+      box-shadow: 0 4px 15px rgba(255, 179, 0, 0.4);
+    }
+    #startBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 179, 0, 0.6);
+    }
+    #startBtn:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div id="startScreen">
+    <div id="startScreenContent">
+      <h1>Bee-Brave</h1>
+      <div class="subtitle">Configure your game settings and prepare for battle!</div>
+
+      <div class="section">
+        <div class="section-title">Game Settings</div>
+        <div class="control">
+          <label for="startColonySize">
+            Colony size
+            <span id="startColonySizeVal">12</span>
+          </label>
+          <input type="range" min="3" max="30" value="12" id="startColonySize">
+        </div>
+
+        <div class="control">
+          <label for="startMaxColonySize">
+            Max colony size
+            <span id="startMaxColonySizeVal">30</span>
+          </label>
+          <input type="range" min="3" max="100" value="30" id="startMaxColonySize">
+        </div>
+
+        <div class="control">
+          <label for="startResourceCount">
+            Resource locations
+            <span id="startResourceCountVal">6</span>
+          </label>
+          <input type="range" min="1" max="20" value="6" id="startResourceCount">
+        </div>
+
+        <div class="control">
+          <label for="startResourceAmount">
+            Resource amount
+            <span id="startResourceAmountVal">120</span>
+          </label>
+          <input type="range" min="20" max="300" value="120" id="startResourceAmount">
+        </div>
+
+        <div class="control">
+          <label for="startPriorityPercent">
+            % bees prefer 90%+ sites
+            <span id="startPriorityPercentVal">60%</span>
+          </label>
+          <input type="range" min="0" max="100" value="60" id="startPriorityPercent">
+        </div>
+
+        <div class="control">
+          <label for="startShotDistance">
+            Shot distance
+            <span id="startShotDistanceVal">200</span>
+          </label>
+          <input type="range" min="50" max="500" value="200" id="startShotDistance">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Controls</div>
+        <div class="controls-info">
+          <div><strong>Movement:</strong> A/← (left), W/↑ (up), S/X/↓ (down), D/→ (right)</div>
+          <div><strong>Shoot:</strong> Space</div>
+          <div><strong>Special Weapon:</strong> V (Freeze Bomb, Electric Blast, or Warp)</div>
+          <div><strong>Cycle Weapon:</strong> Shift</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Legend</div>
+        <div class="legend-section">
+          <span class="badge"><span class="dot hex"></span>Hive cell</span>
+          <span class="badge"><span class="dot honey"></span>Honey-filled</span>
+          <span class="badge"><span class="dot bee"></span>Worker bee</span>
+          <span class="badge"><span class="dot flower"></span>Resource</span>
+        </div>
+      </div>
+
+      <button id="startBtn">Start Game</button>
+    </div>
+  </div>
+
+  <div id="ui">
+    <h1>Bee-brave</h1>
+
+    <!-- Hidden sliders for JavaScript reference (values synced from start screen) -->
+    <div style="display: none;">
+      <input type="range" min="3" max="30" value="12" id="colonySize">
+      <input type="range" min="3" max="100" value="30" id="maxColonySize">
+      <input type="range" min="1" max="20" value="6" id="resourceCount">
+      <input type="range" min="20" max="300" value="120" id="resourceAmount">
+      <input type="range" min="0" max="100" value="60" id="priorityPercent">
+      <input type="range" min="50" max="500" value="200" id="shotDistance">
+      <span id="colonySizeVal">12</span>
+      <span id="maxColonySizeVal">30</span>
+      <span id="resourceCountVal">6</span>
+      <span id="resourceAmountVal">120</span>
+      <span id="priorityPercentVal">60%</span>
+      <span id="shotDistanceVal">200</span>
+    </div>
+
+    <!-- Score Display -->
+    <div class="stat-section">
+      <div class="stat-label">Score</div>
+      <div class="score-display" id="scoreDisplay">0</div>
+    </div>
+
+    <!-- Colony Counter -->
+    <div class="stat-section">
+      <div class="stat-label">Colony</div>
+      <div class="score-display" id="colonyDisplay">0</div>
+    </div>
+
+    <!-- Health & Shield Bars -->
+    <div class="stat-section health-shield-container">
+      <div class="bar-container">
+        <div class="bar-label">
+          <span>🛡️ Shield</span>
+          <span class="value" id="shieldValue">100%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill shield" id="shieldBar" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="bar-container">
+        <div class="bar-label">
+          <span>❤️ Health</span>
+          <span class="value" id="healthValue">100%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill health" id="healthBar" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Special Weapons -->
+    <div class="stat-section weapons-section">
+      <div class="weapons-title">Special Weapons</div>
+      <div class="weapons-grid">
+        <div class="weapon-card" id="weaponFreeze" data-weapon="freeze">
+          <div class="weapon-icon">❄️</div>
+          <div class="weapon-name">Freeze</div>
+          <div class="weapon-count" id="freezeCount">3</div>
+        </div>
+        <div class="weapon-card" id="weaponElectric" data-weapon="electric">
+          <div class="weapon-icon">⚡</div>
+          <div class="weapon-name">Electric</div>
+          <div class="weapon-count" id="electricCount">3</div>
+        </div>
+        <div class="weapon-card" id="weaponWarp" data-weapon="warp">
+          <div class="weapon-icon">🌀</div>
+          <div class="weapon-name">Warp</div>
+          <div class="weapon-count" id="warpCount">2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="gameOver">
+    <h2>GAME OVER</h2>
+    <p>Your health has been depleted!</p>
+    <div class="button-container">
+      <button id="restartBtn">Restart Game</button>
+      <button id="settingsBtn">Return to Settings</button>
+    </div>
+  </div>
+
+  <script>
+    // Canvas setup
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    
+    // Web Audio API setup for rocket engine sound
+    let audioContext = null;
+    let engineNodes = {
+      noiseSource: null,
+      rumbleOscillator: null,
+      pulseOscillator: null,
+      lowPassFilter: null,
+      highPassFilter: null,
+      masterGain: null,
+      noiseGain: null,
+      rumbleGain: null,
+      noisePulseGain: null,
+      rumbleFreqMod: null,
+      filterMod: null,
+      noisePulseOffset: null,
+      rumbleFreqOffset: null,
+      filterOffset: null
+    };
+    let isEngineRunning = false;
+    
+    // Initialize audio context (must be triggered by user interaction)
+    function initAudioContext() {
+      if (!audioContext) {
+        try {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          
+          // Create master gain node for volume control
+          engineNodes.masterGain = audioContext.createGain();
+          engineNodes.masterGain.gain.value = 0.25; // Master volume
+          engineNodes.masterGain.connect(audioContext.destination);
+        } catch (e) {
+          console.warn('Web Audio API not supported:', e);
+        }
+      }
+      
+      // Resume audio context if suspended (required for some browsers)
+      if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().catch(e => {
+          console.warn('Could not resume audio context:', e);
+        });
+      }
+    }
+    
+    // Start rocket engine sound
+    function startEngineSound() {
+      if (!audioContext || isEngineRunning) return;
+      
+      try {
+        // Create filters for rocket engine sound
+        engineNodes.lowPassFilter = audioContext.createBiquadFilter();
+        engineNodes.lowPassFilter.type = 'lowpass';
+        engineNodes.lowPassFilter.frequency.value = 800; // Muffle high frequencies
+        engineNodes.lowPassFilter.Q.value = 1;
+        
+        engineNodes.highPassFilter = audioContext.createBiquadFilter();
+        engineNodes.highPassFilter.type = 'highpass';
+        engineNodes.highPassFilter.frequency.value = 40; // Remove very low rumble
+        engineNodes.highPassFilter.Q.value = 1;
+        
+        // Connect filters in chain: highpass -> lowpass -> master gain
+        engineNodes.highPassFilter.connect(engineNodes.lowPassFilter);
+        engineNodes.lowPassFilter.connect(engineNodes.masterGain);
+        
+        // 1. WHITE NOISE - Turbulent exhaust sound (main rocket engine character)
+        engineNodes.noiseSource = audioContext.createBufferSource();
+        const bufferSize = audioContext.sampleRate * 2;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1; // White noise
+        }
+        engineNodes.noiseSource.buffer = noiseBuffer;
+        engineNodes.noiseSource.loop = true;
+        
+        // Gain for noise
+        engineNodes.noiseGain = audioContext.createGain();
+        engineNodes.noiseGain.gain.value = 0.4; // Noise volume
+        
+        engineNodes.noiseSource.connect(engineNodes.noiseGain);
+        engineNodes.noiseGain.connect(engineNodes.highPassFilter);
+        
+        // 2. LOW FREQUENCY RUMBLE - Deep engine vibration
+        engineNodes.rumbleOscillator = audioContext.createOscillator();
+        engineNodes.rumbleOscillator.type = 'sawtooth';
+        engineNodes.rumbleOscillator.frequency.value = 45; // Deep rumble
+        
+        // Gain for rumble
+        engineNodes.rumbleGain = audioContext.createGain();
+        engineNodes.rumbleGain.gain.value = 0.25; // Rumble volume
+        
+        engineNodes.rumbleOscillator.connect(engineNodes.rumbleGain);
+        engineNodes.rumbleGain.connect(engineNodes.highPassFilter);
+        
+        // 3. PULSE MODULATION - Creates pulsing/thrust variation effect
+        engineNodes.pulseOscillator = audioContext.createOscillator();
+        engineNodes.pulseOscillator.type = 'sine';
+        engineNodes.pulseOscillator.frequency.value = 3.2; // Pulse rate (Hz)
+        
+        // Modulate noise gain (volume pulsing)
+        // Create constant source for base value
+        if (typeof audioContext.createConstantSource === 'function') {
+          const noiseBase = audioContext.createConstantSource();
+          noiseBase.offset.value = 0.4; // Base noise gain
+          noiseBase.connect(engineNodes.noiseGain.gain);
+          noiseBase.start();
+          engineNodes.noisePulseOffset = noiseBase;
+        } else {
+          // Fallback: set base value directly
+          engineNodes.noiseGain.gain.value = 0.4;
+        }
+        
+        const noisePulseGain = audioContext.createGain();
+        noisePulseGain.gain.value = 0.15; // Pulse intensity (±0.15)
+        engineNodes.pulseOscillator.connect(noisePulseGain);
+        noisePulseGain.connect(engineNodes.noiseGain.gain);
+        
+        // Modulate rumble frequency (frequency variation)
+        if (typeof audioContext.createConstantSource === 'function') {
+          const rumbleBase = audioContext.createConstantSource();
+          rumbleBase.offset.value = 45; // Base frequency
+          rumbleBase.connect(engineNodes.rumbleOscillator.frequency);
+          rumbleBase.start();
+          engineNodes.rumbleFreqOffset = rumbleBase;
+        } else {
+          engineNodes.rumbleOscillator.frequency.value = 45;
+        }
+        
+        const rumbleFreqMod = audioContext.createGain();
+        rumbleFreqMod.gain.value = 8; // Frequency modulation amount (±8 Hz)
+        engineNodes.pulseOscillator.connect(rumbleFreqMod);
+        rumbleFreqMod.connect(engineNodes.rumbleOscillator.frequency);
+        
+        // Modulate low-pass filter frequency (dynamic filtering)
+        if (typeof audioContext.createConstantSource === 'function') {
+          const filterBase = audioContext.createConstantSource();
+          filterBase.offset.value = 800; // Base filter frequency
+          filterBase.connect(engineNodes.lowPassFilter.frequency);
+          filterBase.start();
+          engineNodes.filterOffset = filterBase;
+        } else {
+          engineNodes.lowPassFilter.frequency.value = 800;
+        }
+        
+        const filterMod = audioContext.createGain();
+        filterMod.gain.value = 120; // Filter modulation amount (±120 Hz)
+        engineNodes.pulseOscillator.connect(filterMod);
+        filterMod.connect(engineNodes.lowPassFilter.frequency);
+        
+        // Start all sources
+        engineNodes.noiseSource.start();
+        engineNodes.rumbleOscillator.start();
+        engineNodes.pulseOscillator.start();
+        
+        // Store modulation nodes for cleanup
+        engineNodes.noisePulseGain = noisePulseGain;
+        engineNodes.rumbleFreqMod = rumbleFreqMod;
+        engineNodes.filterMod = filterMod;
+        
+        isEngineRunning = true;
+      } catch (e) {
+        console.warn('Error starting engine sound:', e);
+      }
+    }
+    
+    // Stop rocket engine sound
+    function stopEngineSound() {
+      if (!isEngineRunning) return;
+      
+      try {
+        // Stop and disconnect all audio nodes
+        if (engineNodes.noiseSource) {
+          engineNodes.noiseSource.stop();
+          engineNodes.noiseSource = null;
+        }
+        if (engineNodes.rumbleOscillator) {
+          engineNodes.rumbleOscillator.stop();
+          engineNodes.rumbleOscillator = null;
+        }
+        if (engineNodes.pulseOscillator) {
+          engineNodes.pulseOscillator.stop();
+          engineNodes.pulseOscillator = null;
+        }
+        if (engineNodes.noisePulseOffset) {
+          engineNodes.noisePulseOffset.stop();
+          engineNodes.noisePulseOffset.disconnect();
+          engineNodes.noisePulseOffset = null;
+        }
+        if (engineNodes.rumbleFreqOffset) {
+          engineNodes.rumbleFreqOffset.stop();
+          engineNodes.rumbleFreqOffset.disconnect();
+          engineNodes.rumbleFreqOffset = null;
+        }
+        if (engineNodes.filterOffset) {
+          engineNodes.filterOffset.stop();
+          engineNodes.filterOffset.disconnect();
+          engineNodes.filterOffset = null;
+        }
+        if (engineNodes.noisePulseGain) {
+          engineNodes.noisePulseGain.disconnect();
+          engineNodes.noisePulseGain = null;
+        }
+        if (engineNodes.rumbleFreqMod) {
+          engineNodes.rumbleFreqMod.disconnect();
+          engineNodes.rumbleFreqMod = null;
+        }
+        if (engineNodes.filterMod) {
+          engineNodes.filterMod.disconnect();
+          engineNodes.filterMod = null;
+        }
+        
+        // Disconnect filters
+        if (engineNodes.lowPassFilter) {
+          engineNodes.lowPassFilter.disconnect();
+          engineNodes.lowPassFilter = null;
+        }
+        if (engineNodes.highPassFilter) {
+          engineNodes.highPassFilter.disconnect();
+          engineNodes.highPassFilter = null;
+        }
+        
+        // Disconnect gain nodes
+        if (engineNodes.noiseGain) {
+          engineNodes.noiseGain.disconnect();
+          engineNodes.noiseGain = null;
+        }
+        if (engineNodes.rumbleGain) {
+          engineNodes.rumbleGain.disconnect();
+          engineNodes.rumbleGain = null;
+        }
+        
+        isEngineRunning = false;
+      } catch (e) {
+        console.warn('Error stopping engine sound:', e);
+      }
+    }
+    
+    // Play firing sound effect
+    function playFireSound() {
+      if (!audioContext) {
+        initAudioContext();
+        if (!audioContext) return; // Still can't initialize
+      }
+      
+      try {
+        // Resume audio context if suspended
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        const now = audioContext.currentTime;
+        const duration = 0.15; // Short burst sound (150ms)
+        
+        // Create a sharp "pew" sound using multiple oscillators
+        // Main tone: high frequency sweep down
+        const mainOsc = audioContext.createOscillator();
+        mainOsc.type = 'sawtooth';
+        mainOsc.frequency.setValueAtTime(800, now); // Start high
+        mainOsc.frequency.exponentialRampToValueAtTime(400, now + duration); // Sweep down
+        
+        // Secondary tone: adds character
+        const subOsc = audioContext.createOscillator();
+        subOsc.type = 'square';
+        subOsc.frequency.setValueAtTime(600, now);
+        subOsc.frequency.exponentialRampToValueAtTime(300, now + duration);
+        
+        // Create gain envelope for sharp attack and quick decay
+        const mainGain = audioContext.createGain();
+        mainGain.gain.setValueAtTime(0, now);
+        mainGain.gain.linearRampToValueAtTime(0.3, now + 0.01); // Quick attack
+        mainGain.gain.exponentialRampToValueAtTime(0.01, now + duration); // Quick decay
+        
+        const subGain = audioContext.createGain();
+        subGain.gain.setValueAtTime(0, now);
+        subGain.gain.linearRampToValueAtTime(0.15, now + 0.01);
+        subGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        // Add a bit of noise for "crack" effect
+        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          noiseData[i] = (Math.random() * 2 - 1) * 0.3; // White noise
+        }
+        const noiseSource = audioContext.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.1, now + 0.005);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        // Low-pass filter for noise to make it less harsh
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 2000;
+        
+        // Connect everything
+        mainOsc.connect(mainGain);
+        subOsc.connect(subGain);
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        
+        mainGain.connect(audioContext.destination);
+        subGain.connect(audioContext.destination);
+        noiseGain.connect(audioContext.destination);
+        
+        // Start and stop sources
+        mainOsc.start(now);
+        mainOsc.stop(now + duration);
+        subOsc.start(now);
+        subOsc.stop(now + duration);
+        noiseSource.start(now);
+        noiseSource.stop(now + duration);
+        
+      } catch (e) {
+        console.warn('Error playing fire sound:', e);
+      }
+    }
+    
+    // Play explosion sound effect
+    function playExplosionSound() {
+      if (!audioContext) {
+        initAudioContext();
+        if (!audioContext) return; // Still can't initialize
+      }
+      
+      try {
+        // Resume audio context if suspended
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        const now = audioContext.currentTime;
+        const duration = 1.2; // Longer explosion sound (1.2 seconds)
+        
+        // 1. LOW RUMBLE - Deep explosion bass
+        const rumbleOsc = audioContext.createOscillator();
+        rumbleOsc.type = 'sawtooth';
+        rumbleOsc.frequency.setValueAtTime(40, now); // Very low frequency
+        rumbleOsc.frequency.exponentialRampToValueAtTime(20, now + duration);
+        
+        const rumbleGain = audioContext.createGain();
+        rumbleGain.gain.setValueAtTime(0, now);
+        rumbleGain.gain.linearRampToValueAtTime(0.4, now + 0.05); // Quick attack
+        rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        
+        // Low-pass filter for rumble
+        const rumbleFilter = audioContext.createBiquadFilter();
+        rumbleFilter.type = 'lowpass';
+        rumbleFilter.frequency.value = 200;
+        rumbleFilter.Q.value = 1;
+        
+        // 2. EXPLOSION NOISE - White noise burst
+        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          noiseData[i] = (Math.random() * 2 - 1) * 0.8; // Strong white noise
+        }
+        const noiseSource = audioContext.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.5, now + 0.02); // Very quick attack
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.6); // Decay faster
+        
+        // Band-pass filter for noise to make it sound more explosive
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = 800;
+        noiseFilter.Q.value = 2;
+        
+        // 3. HIGH FREQUENCY CRACK - Sharp initial burst
+        const crackOsc = audioContext.createOscillator();
+        crackOsc.type = 'square';
+        crackOsc.frequency.setValueAtTime(2000, now);
+        crackOsc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+        
+        const crackGain = audioContext.createGain();
+        crackGain.gain.setValueAtTime(0, now);
+        crackGain.gain.linearRampToValueAtTime(0.3, now + 0.005); // Instant attack
+        crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15); // Quick decay
+        
+        // 4. REVERB/ECHO EFFECT - Create multiple delayed copies for depth
+        const delay1 = audioContext.createDelay(0.5);
+        delay1.delayTime.value = 0.1;
+        const delayGain1 = audioContext.createGain();
+        delayGain1.gain.value = 0.3;
+        
+        const delay2 = audioContext.createDelay(0.5);
+        delay2.delayTime.value = 0.2;
+        const delayGain2 = audioContext.createGain();
+        delayGain2.gain.value = 0.15;
+        
+        // Connect rumble
+        rumbleOsc.connect(rumbleFilter);
+        rumbleFilter.connect(rumbleGain);
+        rumbleGain.connect(audioContext.destination);
+        
+        // Connect noise
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(audioContext.destination);
+        
+        // Connect crack
+        crackOsc.connect(crackGain);
+        crackGain.connect(audioContext.destination);
+        
+        // Add delay effects to noise for depth
+        noiseGain.connect(delay1);
+        delay1.connect(delayGain1);
+        delayGain1.connect(audioContext.destination);
+        
+        noiseGain.connect(delay2);
+        delay2.connect(delayGain2);
+        delayGain2.connect(audioContext.destination);
+        
+        // Start all sources
+        rumbleOsc.start(now);
+        rumbleOsc.stop(now + duration);
+        noiseSource.start(now);
+        noiseSource.stop(now + duration);
+        crackOsc.start(now);
+        crackOsc.stop(now + 0.15);
+        
+      } catch (e) {
+        console.warn('Error playing explosion sound:', e);
+      }
+    }
+    
+    // Game state
+    let gameOver = false;
+    let gameStarted = false;
+    const gameOverEl = document.getElementById('gameOver');
+    const restartBtn = document.getElementById('restartBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+
+    // declare userIcon before resize so we can clamp it
+    let userIcon = null;
+    let spawnIndicator = null; // { x, y, duration, maxDuration }
+    let userExplosion = null; // { x, y, duration, maxDuration, radius }
+    let userTrail = []; // Array of { x, y, age, maxAge } for afterburner trail
+    const TRAIL_MAX_AGE = 800; // Trail points fade out over 800ms
+    const TRAIL_SPACING = 3; // Add trail point every N pixels of movement
+    let lastTrailX = null;
+    let lastTrailY = null;
+
+    let w, h, center;
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      center = { x: w * 0.53, y: h * 0.55 };
+      if (userIcon) {
+        userIcon.x = Math.min(Math.max(userIcon.x, 0), w);
+        userIcon.y = Math.min(Math.max(userIcon.y, 0), h);
+      }
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // UI elements
+    const colonySizeInput = document.getElementById('colonySize');
+    const colonySizeVal = document.getElementById('colonySizeVal');
+    const maxColonySizeInput = document.getElementById('maxColonySize');
+    const maxColonySizeVal = document.getElementById('maxColonySizeVal');
+    const resourceCountInput = document.getElementById('resourceCount');
+    const resourceCountVal = document.getElementById('resourceCountVal');
+    const resourceAmountInput = document.getElementById('resourceAmount');
+    const resourceAmountVal = document.getElementById('resourceAmountVal');
+    const priorityPercentInput = document.getElementById('priorityPercent');
+    const priorityPercentVal = document.getElementById('priorityPercentVal');
+    const shotDistanceInput = document.getElementById('shotDistance');
+    const shotDistanceVal = document.getElementById('shotDistanceVal');
+
+    // Start screen UI elements
+    const startColonySizeInput = document.getElementById('startColonySize');
+    const startColonySizeVal = document.getElementById('startColonySizeVal');
+    const startMaxColonySizeInput = document.getElementById('startMaxColonySize');
+    const startMaxColonySizeVal = document.getElementById('startMaxColonySizeVal');
+    const startResourceCountInput = document.getElementById('startResourceCount');
+    const startResourceCountVal = document.getElementById('startResourceCountVal');
+    const startResourceAmountInput = document.getElementById('startResourceAmount');
+    const startResourceAmountVal = document.getElementById('startResourceAmountVal');
+    const startPriorityPercentInput = document.getElementById('startPriorityPercent');
+    const startPriorityPercentVal = document.getElementById('startPriorityPercentVal');
+    const startShotDistanceInput = document.getElementById('startShotDistance');
+    const startShotDistanceVal = document.getElementById('startShotDistanceVal');
+
+    const cellsEl = document.getElementById('cells');
+    const honeyEl = document.getElementById('honey');
+    const extResEl = document.getElementById('extRes');
+    const siteCountEl = document.getElementById('siteCount');
+    
+    // New UI elements
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const colonyDisplay = document.getElementById('colonyDisplay');
+    const shieldBar = document.getElementById('shieldBar');
+    const shieldValue = document.getElementById('shieldValue');
+    const healthBar = document.getElementById('healthBar');
+    const healthValue = document.getElementById('healthValue');
+    const freezeCountEl = document.getElementById('freezeCount');
+    const electricCountEl = document.getElementById('electricCount');
+    const warpCountEl = document.getElementById('warpCount');
+    const weaponFreeze = document.getElementById('weaponFreeze');
+    const weaponElectric = document.getElementById('weaponElectric');
+    const weaponWarp = document.getElementById('weaponWarp');
+    
+    // Score tracking
+    let score = 0;
+    let destroyedBees = 0;
+    let destroyedCells = 0;
+
+    // Hive
+    let hiveHoney = 0;
+    const honeyPerCell = 12;
+    const honeyToBuild = 15;
+
+    // Hex grid
+    const HEX_SIZE = 26;
+    const CELL_MAX_HP = 5; // Number of hits needed to destroy an empty cell
+    const HONEY_DAMAGE_PER_HIT = 2; // Amount of honey lost per bullet hit
+    const HIVE_FIRE_COOLDOWN = 2000; // 2 seconds between shots
+    const HIVE_FIRE_RANGE = 500; // Range at which hive cells can fire
+    const cells = [{ q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 }];
+    const directions = [
+      { q: 1, r: 0 },
+      { q: 1, r: -1 },
+      { q: 0, r: -1 },
+      { q: -1, r: 0 },
+      { q: -1, r: 1 },
+      { q: 0, r: 1 }
+    ];
+    function hexToPixel(q, r) {
+      const x = HEX_SIZE * (Math.sqrt(3) * q + Math.sqrt(3)/2 * r);
+      const y = HEX_SIZE * (3/2 * r);
+      return { x: center.x + x, y: center.y + y };
+    }
+    function hasCell(q, r) {
+      return cells.some(c => c.q === q && c.r === r);
+    }
+    function isPointInHex(px, py, hexCenterX, hexCenterY, hexSize) {
+      // Convert point to hex-relative coordinates
+      const dx = px - hexCenterX;
+      const dy = py - hexCenterY;
+      const distFromCenter = Math.hypot(dx, dy);
+      
+      // Hexagon inscribed circle radius is hexSize
+      // For a regular hexagon, the distance from center to vertex is hexSize
+      // The distance from center to edge is hexSize * sqrt(3)/2 ≈ hexSize * 0.866
+      // We'll use hexSize as the effective radius (slightly larger than inscribed circle)
+      // This makes it easier to hit cells and feels more forgiving
+      return distFromCenter <= hexSize;
+    }
+    function getCellAtPoint(px, py) {
+      // Find which cell (if any) contains this point
+      for (let c of cells) {
+        const p = hexToPixel(c.q, c.r);
+        const effectiveSize = HEX_SIZE * c.buildProg; // Account for build progress
+        if (isPointInHex(px, py, p.x, p.y, effectiveSize)) {
+          return c;
+        }
+      }
+      return null;
+    }
+    function tryBuildNewCell() {
+      // Only build if ALL existing cells are completely filled (buildProg = 1)
+      const incompleteCells = cells.filter(c => c.buildProg < 1);
+      if (incompleteCells.length > 0) return;
+      
+      // Build exactly 2 new cells (or as many as possible up to 2)
+      let cellsBuilt = 0;
+      const maxCellsToBuild = 2;
+      
+      for (let c of cells) {
+        if (cellsBuilt >= maxCellsToBuild) break;
+        if (hiveHoney < honeyToBuild) break;
+        
+        for (let d of directions) {
+          if (cellsBuilt >= maxCellsToBuild) break;
+          if (hiveHoney < honeyToBuild) break;
+          
+          const nq = c.q + d.q;
+          const nr = c.r + d.r;
+          if (!hasCell(nq, nr)) {
+            cells.push({ q: nq, r: nr, buildProg: 0, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 });
+            hiveHoney -= honeyToBuild;
+            cellsBuilt++;
+          }
+        }
+      }
+    }
+
+    // Resource locations
+    let resourceSpots = [];
+    function makeResourceSpots(count, baseAmount) {
+      resourceSpots = [];
+      for (let i = 0; i < count; i++) {
+        let x, y, tries = 0;
+        do {
+          x = Math.random() * w;
+          y = Math.random() * h;
+          tries++;
+        } while (
+          (Math.hypot(x - center.x, y - center.y) < 120 ||
+           (x < 280 && y < 250)) && tries < 50
+        );
+        const amount = baseAmount * (0.5 + Math.random() * 0.8);
+        resourceSpots.push({ x, y, amount, max: amount });
+      }
+      updateTotalResources();
+      if (siteCountEl) siteCountEl.textContent = resourceSpots.length;
+    }
+    function updateTotalResources() {
+      const total = resourceSpots.reduce((s, r) => s + r.amount, 0);
+      if (extResEl) extResEl.textContent = Math.floor(total);
+    }
+
+    // Bees
+    let bees = [];
+    let lastBeeAdditionTime = 0; // Track when we last added bees (to prevent spam)
+    const BEE_ADDITION_COOLDOWN = 1000; // Add bees at most once per second
+    const BEE_MAX_HP = 3;
+    const BEE_ATTACK_RANGE = 200; // Distance at which bees detect and attack the user
+    function makeBee() {
+      return {
+        x: center.x + (Math.random() * 10 - 5),
+        y: center.y + (Math.random() * 10 - 5),
+        state: 'forage',
+        speed: 1.7 + Math.random() * 0.5,
+        cargo: 0,
+        target: null,
+        resourceSpot: null,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 3 + Math.random() * 2,
+        hp: BEE_MAX_HP,
+        maxHp: BEE_MAX_HP,
+        attackCooldown: 0, // Cooldown before returning to forage after losing sight
+        frozen: 0, // Time remaining frozen (ms)
+        frozenSpeed: 1.0 // Speed multiplier when frozen
+      };
+    }
+    function createBees(count) {
+      bees = [];
+      for (let i = 0; i < count; i++) bees.push(makeBee());
+    }
+
+    // Bullets/projectiles
+    let bullets = [];
+    
+    // Special weapons system
+    let weapons = {
+      freeze: { count: 3, name: 'Freeze Bomb' },
+      electric: { count: 3, name: 'Electric Blast' },
+      warp: { count: 2, name: 'Warp' }
+    };
+    let currentWeaponIndex = 0;
+    const weaponTypes = ['freeze', 'electric', 'warp'];
+    let vKeyPressed = false;
+    let shiftKeyPressed = false;
+    
+    // Active weapon effects
+    let freezeBombs = []; // { x, y, radius, duration, maxDuration }
+    let electricBlasts = []; // { x, y, radius, duration, maxDuration }
+    
+    // user icon: placed randomly, slightly larger than bee, controlled by user
+    const keys = {};
+    let spacePressed = false;
+    window.addEventListener('keydown', (e) => {
+      // Initialize audio context on first user interaction
+      initAudioContext();
+      const k = e.key.toLowerCase();
+      keys[k] = true;
+      if (e.key === 'ArrowUp') keys['arrowup'] = true;
+      if (e.key === 'ArrowDown') keys['arrowdown'] = true;
+      if (e.key === 'ArrowLeft') keys['arrowleft'] = true;
+      if (e.key === 'ArrowRight') keys['arrowright'] = true;
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (!spacePressed) {
+          spacePressed = true;
+          shoot();
+        }
+      }
+      if (e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        if (!vKeyPressed) {
+          vKeyPressed = true;
+          useSpecialWeapon();
+        }
+      }
+      if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        e.preventDefault();
+        if (!shiftKeyPressed) {
+          shiftKeyPressed = true;
+          cycleWeapon();
+        }
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      keys[k] = false;
+      if (e.key === 'ArrowUp') keys['arrowup'] = false;
+      if (e.key === 'ArrowDown') keys['arrowdown'] = false;
+      if (e.key === 'ArrowLeft') keys['arrowleft'] = false;
+      if (e.key === 'ArrowRight') keys['arrowright'] = false;
+      if (e.key === ' ') {
+        spacePressed = false;
+      }
+      if (e.key.toLowerCase() === 'v') {
+        vKeyPressed = false;
+      }
+      if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        shiftKeyPressed = false;
+      }
+    });
+
+    function placeUserIcon() {
+      let x, y, tries = 0;
+      do {
+        x = Math.random() * w;
+        y = Math.random() * h;
+        tries++;
+      } while (
+        (Math.hypot(x - center.x, y - center.y) < 120 ||
+         (x < 280 && y < 250)) && tries < 50
+      );
+      userIcon = {
+        x,
+        y,
+        radius: 7,
+        speed: 3.3,  // a bit faster than bees
+        angle: 0,    // current facing angle
+        lastDx: 0,   // last movement direction x
+        lastDy: 0,   // last movement direction y
+        shield: 100, // shield HP
+        maxShield: 100,
+        health: 100,  // user health (when shield is depleted)
+        invincibilityTimer: 3000,  // 3 seconds of invincibility at start
+        lastX: x,    // last position for movement tracking
+        lastY: y,    // last position for movement tracking
+        stationaryTime: 0  // time spent stationary (ms) - improves hive cell aim
+      };
+      // Reset trail
+      userTrail = [];
+      lastTrailX = null;
+      lastTrailY = null;
+      // Create spawn indicator
+      spawnIndicator = {
+        x,
+        y,
+        duration: 2000, // 2 seconds
+        maxDuration: 2000
+      };
+    }
+
+    function moveUserIcon(dt) {
+      if (!userIcon || !gameStarted) return;
+      const step = userIcon.speed * dt * 0.06;
+      let dx = 0, dy = 0;
+      
+      // up
+      if (keys['w'] || keys['arrowup']) {
+        userIcon.y -= step;
+        dy -= 1;
+      }
+      // down (s or x or arrowdown)
+      if (keys['s'] || keys['x'] || keys['arrowdown']) {
+        userIcon.y += step;
+        dy += 1;
+      }
+      // left
+      if (keys['a'] || keys['arrowleft']) {
+        userIcon.x -= step;
+        dx -= 1;
+      }
+      // right
+      if (keys['d'] || keys['arrowright']) {
+        userIcon.x += step;
+        dx += 1;
+      }
+
+      // Track movement for stationary detection
+      const MOVEMENT_THRESHOLD = 2; // pixels - if moved less than this, consider stationary
+      const distMoved = Math.hypot(userIcon.x - userIcon.lastX, userIcon.y - userIcon.lastY);
+      
+      if (distMoved < MOVEMENT_THRESHOLD) {
+        // User is stationary - increase stationary time
+        userIcon.stationaryTime += dt;
+      } else {
+        // User moved - reset stationary time
+        userIcon.stationaryTime = 0;
+        userIcon.lastX = userIcon.x;
+        userIcon.lastY = userIcon.y;
+      }
+
+      // update angle based on movement direction (normalize direction vector)
+      if (dx !== 0 || dy !== 0) {
+        const len = Math.hypot(dx, dy);
+        userIcon.lastDx = dx / len;
+        userIcon.lastDy = dy / len;
+        userIcon.angle = Math.atan2(dy, dx);
+        
+        // Start engine sound when moving
+        if (!isEngineRunning) {
+          initAudioContext();
+          startEngineSound();
+        }
+        
+        // Add trail point if moved enough distance
+        if (lastTrailX === null || lastTrailY === null) {
+          lastTrailX = userIcon.x;
+          lastTrailY = userIcon.y;
+        } else {
+          const distMoved = Math.hypot(userIcon.x - lastTrailX, userIcon.y - lastTrailY);
+          if (distMoved >= TRAIL_SPACING) {
+            // Place trail point behind the user (opposite direction of movement)
+            const behindDistance = 15; // Distance behind user
+            const trailX = userIcon.x - Math.cos(userIcon.angle) * behindDistance;
+            const trailY = userIcon.y - Math.sin(userIcon.angle) * behindDistance;
+            
+            userTrail.push({
+              x: trailX,
+              y: trailY,
+              age: 0,
+              maxAge: TRAIL_MAX_AGE,
+              angle: userIcon.angle
+            });
+            lastTrailX = userIcon.x;
+            lastTrailY = userIcon.y;
+          }
+        }
+      } else {
+        // Stop engine sound when not moving
+        if (isEngineRunning) {
+          stopEngineSound();
+        }
+      }
+
+      // clamp
+      userIcon.x = Math.min(Math.max(userIcon.x, 0), w);
+      userIcon.y = Math.min(Math.max(userIcon.y, 0), h);
+    }
+
+    function shoot() {
+      if (!userIcon || !gameStarted) return;
+      const shotDist = +shotDistanceInput.value;
+      const angle = userIcon.angle;
+      const speed = 8;
+      
+      // Play firing sound
+      playFireSound();
+      
+      bullets.push({
+        x: userIcon.x,
+        y: userIcon.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        angle: angle,
+        maxDistance: shotDist,
+        distanceTraveled: 0,
+        radius: 3,
+        isHiveBullet: false
+      });
+    }
+    
+    function useSpecialWeapon() {
+      if (!userIcon || gameOver || !gameStarted) return;
+      
+      const currentWeapon = weaponTypes[currentWeaponIndex];
+      
+      // Check if weapon has ammo
+      if (weapons[currentWeapon].count <= 0) {
+        // Cycle to next weapon
+        currentWeaponIndex = (currentWeaponIndex + 1) % weaponTypes.length;
+        updateWeaponUI();
+        return;
+      }
+      
+      // Use weapon
+      weapons[currentWeapon].count--;
+      updateWeaponUI();
+      
+      if (currentWeapon === 'freeze') {
+        // Freeze bomb: lay behind user
+        const behindDistance = 30;
+        const freezeX = userIcon.x - Math.cos(userIcon.angle) * behindDistance;
+        const freezeY = userIcon.y - Math.sin(userIcon.angle) * behindDistance;
+        freezeBombs.push({
+          x: freezeX,
+          y: freezeY,
+          radius: 80,
+          duration: 3000, // 3 seconds
+          maxDuration: 3000
+        });
+      } else if (currentWeapon === 'electric') {
+        // Electric blast: centered on user
+        electricBlasts.push({
+          x: userIcon.x,
+          y: userIcon.y,
+          radius: 100,
+          duration: 500, // 0.5 seconds
+          maxDuration: 500
+        });
+      } else if (currentWeapon === 'warp') {
+        // Warp: teleport user forward
+        const warpDistance = 150;
+        const newX = userIcon.x + Math.cos(userIcon.angle) * warpDistance;
+        const newY = userIcon.y + Math.sin(userIcon.angle) * warpDistance;
+        userIcon.x = Math.min(Math.max(newX, 0), w);
+        userIcon.y = Math.min(Math.max(newY, 0), h);
+      }
+      
+      // Don't auto-cycle weapon - only cycle when Shift is pressed
+    }
+    
+    function cycleWeapon() {
+      // Cycle to next weapon
+      currentWeaponIndex = (currentWeaponIndex + 1) % weaponTypes.length;
+      updateWeaponUI();
+    }
+    
+    function updateWeaponUI() {
+      freezeCountEl.textContent = weapons.freeze.count;
+      electricCountEl.textContent = weapons.electric.count;
+      warpCountEl.textContent = weapons.warp.count;
+      
+      // Update weapon card states
+      weaponFreeze.classList.toggle('selected', currentWeaponIndex === 0);
+      weaponFreeze.classList.toggle('empty', weapons.freeze.count === 0);
+      weaponElectric.classList.toggle('selected', currentWeaponIndex === 1);
+      weaponElectric.classList.toggle('empty', weapons.electric.count === 0);
+      weaponWarp.classList.toggle('selected', currentWeaponIndex === 2);
+      weaponWarp.classList.toggle('empty', weapons.warp.count === 0);
+    }
+
+    // choose resource: priority % for 90%+ sites
+    function pickResourceForBee(bee, preferHighPct) {
+      const roll = Math.random() * 100;
+      let candidates = [];
+      if (roll < preferHighPct) {
+        candidates = resourceSpots.filter(r => r.amount > 0 && r.amount / r.max >= 0.9);
+        if (candidates.length === 0) {
+          candidates = resourceSpots.filter(r => r.amount > 0);
+        }
+      } else {
+        candidates = resourceSpots.filter(r => r.amount > 0);
+      }
+      if (candidates.length === 0) return null;
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function update(now, dt) {
+      // Don't update if game is over or not started
+      if (gameOver || !gameStarted) {
+        // Stop engine sound if game is not running
+        if (isEngineRunning) {
+          stopEngineSound();
+        }
+        return;
+      }
+      
+      // move user
+      moveUserIcon(dt);
+
+      // Update trail ages and remove old points
+      userTrail = userTrail.map(point => ({
+        ...point,
+        age: point.age + dt
+      })).filter(point => point.age < point.maxAge);
+
+      // Update invincibility timer
+      if (userIcon && userIcon.invincibilityTimer > 0) {
+        userIcon.invincibilityTimer = Math.max(0, userIcon.invincibilityTimer - dt);
+      }
+
+      // Update spawn indicator
+      if (spawnIndicator) {
+        spawnIndicator.duration -= dt;
+        if (spawnIndicator.duration <= 0) {
+          spawnIndicator = null;
+        }
+      }
+
+      // Update user explosion
+      if (userExplosion) {
+        userExplosion.duration -= dt;
+        // Expand radius over time
+        const progress = 1 - (userExplosion.duration / userExplosion.maxDuration);
+        userExplosion.radius = 20 + progress * 80; // Start at 20, expand to 100
+        
+        if (userExplosion.duration <= 0) {
+          userExplosion = null;
+          // Show game over screen after explosion completes
+          if (!gameOver) {
+            gameOver = true;
+            gameOverEl.classList.add('show');
+          }
+        }
+      }
+
+      // Update weapon effects
+      // Freeze bombs
+      freezeBombs = freezeBombs.filter(bomb => {
+        bomb.duration -= dt;
+        if (bomb.duration <= 0) return false;
+        
+        // Freeze bees in radius
+        bees.forEach(bee => {
+          const dist = Math.hypot(bee.x - bomb.x, bee.y - bomb.y);
+          if (dist < bomb.radius) {
+            bee.frozen = Math.max(bee.frozen, bomb.duration);
+          }
+        });
+        
+        return true;
+      });
+      
+      // Electric blasts
+      electricBlasts = electricBlasts.filter(blast => {
+        blast.duration -= dt;
+        if (blast.duration <= 0) return false;
+        
+        // Damage bees in radius
+        for (let i = bees.length - 1; i >= 0; i--) {
+          const bee = bees[i];
+          const dist = Math.hypot(bee.x - blast.x, bee.y - blast.y);
+          if (dist < blast.radius) {
+            bee.hp -= 0.5 * (dt / blast.maxDuration); // Small damage over time
+            if (bee.hp <= 0) {
+              bees.splice(i, 1);
+              destroyedBees++;
+            }
+          }
+        }
+        
+        return true;
+      });
+
+      // update bullets
+      bullets = bullets.filter(bullet => {
+        bullet.x += bullet.vx * (dt * 0.06);
+        bullet.y += bullet.vy * (dt * 0.06);
+        bullet.distanceTraveled += Math.hypot(bullet.vx * (dt * 0.06), bullet.vy * (dt * 0.06));
+        
+        // Remove bullet if it exceeds max distance or goes off screen
+        if (bullet.distanceTraveled >= bullet.maxDistance ||
+            bullet.x < 0 || bullet.x > w || bullet.y < 0 || bullet.y > h) {
+          return false;
+        }
+        
+        // Check collision with user for hive bullets
+        if (bullet.isHiveBullet && userIcon) {
+          const distToUser = Math.hypot(bullet.x - userIcon.x, bullet.y - userIcon.y);
+          if (distToUser < bullet.radius + userIcon.radius) {
+            // Hive bullet hit user - damage shield/health
+            const isInvincible = userIcon.invincibilityTimer > 0;
+            if (!isInvincible) {
+              const hiveBulletDamage = 40; // 70% stronger than base (5 * 1.7)
+              if (userIcon.shield > 0) {
+                userIcon.shield = Math.max(0, userIcon.shield - hiveBulletDamage);
+              } else {
+                userIcon.health = Math.max(0, userIcon.health - hiveBulletDamage);
+              }
+            }
+            return false; // Remove bullet
+          }
+        }
+        
+        // User bullets check collision with hive cells (skip for hive bullets)
+        if (!bullet.isHiveBullet) {
+          const hitCell = getCellAtPoint(bullet.x, bullet.y);
+          if (hitCell) {
+            // Bullet hit a cell - damage any bees in that cell
+            const cellCenter = hexToPixel(hitCell.q, hitCell.r);
+            const cellSize = HEX_SIZE * hitCell.buildProg;
+            
+            // Find bees in this cell
+            let beesHit = false;
+            for (let i = bees.length - 1; i >= 0; i--) {
+              const bee = bees[i];
+              // Check if bee is in the same cell
+              if (isPointInHex(bee.x, bee.y, cellCenter.x, cellCenter.y, cellSize)) {
+                beesHit = true;
+                // Hit! Reduce bee HP
+                bee.hp -= 1;
+                if (bee.hp <= 0) {
+                  bees.splice(i, 1);
+                  destroyedBees++;
+                }
+              }
+            }
+            
+            // Damage the cell itself
+            if (hitCell.honey > 0) {
+              // Cell has honey - deplete honey first
+              hitCell.honey = Math.max(0, hitCell.honey - HONEY_DAMAGE_PER_HIT);
+            } else {
+              // No honey - damage the cell structure
+              hitCell.hp -= 1;
+              if (hitCell.hp <= 0) {
+                // Cell destroyed - remove it
+                const cellIndex = cells.indexOf(hitCell);
+                if (cellIndex !== -1) {
+                  cells.splice(cellIndex, 1);
+                  destroyedCells++;
+                }
+              }
+            }
+            
+            // Remove bullet after hitting cell (whether or not bees were hit)
+            return false;
+          }
+          
+          // Check collision with bees (for bees not in cells) - only for user bullets
+          for (let i = bees.length - 1; i >= 0; i--) {
+            const bee = bees[i];
+            const dist = Math.hypot(bullet.x - bee.x, bullet.y - bee.y);
+            if (dist < bullet.radius + 4) {
+              // Hit! Reduce bee HP
+              bee.hp -= 1;
+              if (bee.hp <= 0) {
+                bees.splice(i, 1);
+                destroyedBees++;
+              }
+              return false; // Remove bullet
+            }
+          }
+        }
+        
+        return true;
+      });
+
+      // grow cells
+      for (let c of cells) {
+        if (c.buildProg < 1) {
+          c.buildProg = Math.min(1, c.buildProg + dt * 0.0015);
+        }
+        
+        // Update fire cooldown
+        if (c.fireCooldown > 0) {
+          c.fireCooldown = Math.max(0, c.fireCooldown - dt);
+        }
+        
+        // Hive cell firing logic
+        if (userIcon && c.buildProg >= 1 && c.honey >= honeyPerCell * 0.5 && c.fireCooldown <= 0) {
+          const cellPos = hexToPixel(c.q, c.r);
+          const distToUser = Math.hypot(cellPos.x - userIcon.x, cellPos.y - userIcon.y);
+          
+          // Fire if user is in range
+          if (distToUser <= HIVE_FIRE_RANGE) {
+            // Calculate angle to user with some inaccuracy
+            const baseAngle = Math.atan2(userIcon.y - cellPos.y, userIcon.x - cellPos.x);
+            
+            // Improve accuracy if user is stationary
+            // Base inaccuracy: ±0.15 radians (~±8.6 degrees)
+            // Max improvement: reduces to ±0.03 radians (~±1.7 degrees) after 2 seconds
+            const MAX_STATIONARY_TIME = 2000; // 2 seconds for maximum accuracy
+            const BASE_INACCURACY = 0.3; // ±0.15 radians
+            const MIN_INACCURACY = 0.06; // ±0.03 radians (much more accurate)
+            
+            const stationaryProgress = Math.min(1, userIcon.stationaryTime / MAX_STATIONARY_TIME);
+            const inaccuracyRange = BASE_INACCURACY - (BASE_INACCURACY - MIN_INACCURACY) * stationaryProgress;
+            const inaccuracy = (Math.random() - 0.5) * inaccuracyRange;
+            const angle = baseAngle + inaccuracy;
+            
+            // Hive bullets are slower and larger
+            const hiveBulletSpeed = 4; // Slower than user bullets (8)
+            const hiveBulletRadius = 5; // Larger than user bullets (3)
+            const hiveBulletMaxDistance = 600; // Max range for hive bullets
+            
+            bullets.push({
+              x: cellPos.x,
+              y: cellPos.y,
+              vx: Math.cos(angle) * hiveBulletSpeed,
+              vy: Math.sin(angle) * hiveBulletSpeed,
+              angle: angle,
+              maxDistance: hiveBulletMaxDistance,
+              distanceTraveled: 0,
+              radius: hiveBulletRadius,
+              isHiveBullet: true
+            });
+            
+            // Reset cooldown
+            c.fireCooldown = HIVE_FIRE_COOLDOWN;
+          }
+        }
+      }
+
+      const preferHighPct = +priorityPercentInput.value;
+
+        // Check bee collisions with user (shield damage)
+      if (userIcon) {
+        const isInvincible = userIcon.invincibilityTimer > 0;
+        let takingDamage = false;
+        let attackingBeesCount = 0;
+        bees.forEach(bee => {
+          const dist = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
+          const beeRadius = 4; // approximate bee radius
+          if (dist < beeRadius + userIcon.radius + 2) {
+            // Only apply damage if not invincible
+            if (!isInvincible) {
+              takingDamage = true;
+              // Attacking bees deal more damage
+              const damageMultiplier = bee.state === 'attack' ? 1.5 : 1.0;
+              attackingBeesCount += damageMultiplier;
+              
+              // Collision! Damage shield first
+              if (userIcon.shield > 0) {
+                userIcon.shield = Math.max(0, userIcon.shield - dt * 0.1 * damageMultiplier);
+                
+                // Repel bee backward when hitting shield
+                const repelDistance = 15; // Distance to push bee back
+                const repelDx = bee.x - userIcon.x;
+                const repelDy = bee.y - userIcon.y;
+                const repelDist = Math.hypot(repelDx, repelDy);
+                if (repelDist > 0) {
+                  // Normalize direction and apply repulsion
+                  const repelDirX = repelDx / repelDist;
+                  const repelDirY = repelDy / repelDist;
+                  bee.x = userIcon.x + repelDirX * (userIcon.radius + beeRadius + repelDistance);
+                  bee.y = userIcon.y + repelDirY * (userIcon.radius + beeRadius + repelDistance);
+                }
+              } else {
+                // Shield depleted, damage health (more damage when shield is down)
+                userIcon.health = Math.max(0, userIcon.health - dt * 0.15 * damageMultiplier);
+              }
+            } else {
+              // Still repel bees when invincible, but don't take damage
+              const repelDistance = 15;
+              const repelDx = bee.x - userIcon.x;
+              const repelDy = bee.y - userIcon.y;
+              const repelDist = Math.hypot(repelDx, repelDy);
+              if (repelDist > 0) {
+                const repelDirX = repelDx / repelDist;
+                const repelDirY = repelDy / repelDist;
+                bee.x = userIcon.x + repelDirX * (userIcon.radius + beeRadius + repelDistance);
+                bee.y = userIcon.y + repelDirY * (userIcon.radius + beeRadius + repelDistance);
+              }
+            }
+          }
+        });
+        
+        // Regenerate shield when not taking damage
+        if (!takingDamage && userIcon.shield < userIcon.maxShield) {
+          userIcon.shield = Math.min(userIcon.maxShield, userIcon.shield + dt * 0.02);
+        }
+        
+        // Health doesn't regenerate automatically - player needs to avoid damage
+      }
+
+      // bees
+      bees.forEach(bee => {
+        bee.wobble += bee.wobbleSpeed * dt * 0.001;
+        
+        // Check if user is within attack range
+        let userDistance = Infinity;
+        if (userIcon) {
+          userDistance = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
+        }
+
+        // Attack behavior: bees attack if user is nearby
+        if (userIcon && userDistance < BEE_ATTACK_RANGE) {
+          if (bee.state === 'forage' || bee.state === 'idle') {
+            bee.state = 'attack';
+            bee.attackCooldown = 2000; // 2 seconds of attack persistence
+          }
+          if (bee.state === 'attack') {
+            bee.target = { x: userIcon.x, y: userIcon.y };
+            bee.attackCooldown = Math.max(0, bee.attackCooldown - dt);
+          }
+        } else {
+          // User out of range - return to normal behavior after cooldown
+          if (bee.state === 'attack') {
+            bee.attackCooldown = Math.max(0, bee.attackCooldown - dt);
+            if (bee.attackCooldown <= 0) {
+              bee.state = 'forage';
+              bee.target = null;
+              bee.resourceSpot = null;
+            }
+          }
+        }
+
+        if (bee.state === 'forage' && (!bee.resourceSpot || bee.resourceSpot.amount <= 0)) {
+          const spot = pickResourceForBee(bee, preferHighPct);
+          if (spot) {
+            bee.resourceSpot = spot;
+            bee.target = { x: spot.x + (Math.random()*10-5), y: spot.y + (Math.random()*10-5) };
+          } else {
+            bee.state = 'idle';
+            bee.target = { x: center.x + (Math.random()*40 - 20), y: center.y + (Math.random()*40 - 20) };
+          }
+        }
+
+        const target = bee.target || { x: center.x, y: center.y };
+        const dx = target.x - bee.x;
+        const dy = target.y - bee.y;
+        const dist = Math.hypot(dx, dy);
+        const dirX = dist ? dx / dist : 0;
+        const dirY = dist ? dy / dist : 0;
+        const wobX = Math.cos(bee.wobble) * 0.8;
+        const wobY = Math.sin(bee.wobble * 0.7) * 0.8;
+        
+        // Update frozen state
+        if (bee.frozen > 0) {
+          bee.frozen = Math.max(0, bee.frozen - dt);
+        }
+        const frozenMultiplier = bee.frozen > 0 ? 0.1 : 1.0; // Almost stopped when frozen
+        
+        // Attacking bees move faster and more directly
+        const speedMultiplier = bee.state === 'attack' ? 1.5 : 1.0;
+        const wobbleMultiplier = bee.state === 'attack' ? 0.3 : 1.0; // Less wobble when attacking
+        
+        bee.x += (dirX * bee.speed * speedMultiplier * frozenMultiplier + wobX * wobbleMultiplier * frozenMultiplier) * (dt * 0.06);
+        bee.y += (dirY * bee.speed * speedMultiplier * frozenMultiplier + wobY * wobbleMultiplier * frozenMultiplier) * (dt * 0.06);
+
+        if (dist < 10) {
+          if (bee.state === 'forage' && bee.resourceSpot) {
+            const spot = bee.resourceSpot;
+            const collect = Math.min(5, spot.amount);
+            bee.cargo = collect;
+            spot.amount -= collect;
+            updateTotalResources();
+            bee.state = 'return';
+            bee.target = { x: center.x + (Math.random()*14-7), y: center.y + (Math.random()*14-7) };
+          } else if (bee.state === 'return') {
+            hiveHoney += bee.cargo;
+            bee.cargo = 0;
+            if (cells.length) {
+              const randomCell = cells[Math.floor(Math.random() * cells.length)];
+              randomCell.honey = Math.min(honeyPerCell, randomCell.honey + 3);
+            }
+            bee.state = 'forage';
+            bee.resourceSpot = null;
+            bee.target = null;
+          } else if (bee.state === 'idle') {
+            bee.target = { x: center.x + (Math.random()*40 - 20), y: center.y + (Math.random()*40 - 20) };
+          }
+        }
+      });
+
+      // Check if hive has 3 full cells and add 2 bees if total doesn't exceed max
+      // Only check once per second to avoid adding bees too frequently
+      if (now - lastBeeAdditionTime >= BEE_ADDITION_COOLDOWN) {
+        const fullCells = cells.filter(c => c.honey >= honeyPerCell);
+        const maxColonySize = +maxColonySizeInput.value;
+        if (fullCells.length >= 3 && bees.length < maxColonySize) {
+          const beesToAdd = Math.min(2, maxColonySize - bees.length);
+          for (let i = 0; i < beesToAdd; i++) {
+            bees.push(makeBee());
+          }
+          lastBeeAdditionTime = now;
+        }
+      }
+
+      // build new cells
+      tryBuildNewCell();
+
+      // Update score based on destroyed bees and hive cells
+      score = destroyedBees * 5 + destroyedCells * 10; // Each bee = 5 point, each cell = 10 points
+      
+      // UI
+      if (cellsEl) cellsEl.textContent = cells.length;
+      if (honeyEl) honeyEl.textContent = Math.floor(hiveHoney);
+      
+      if (userIcon) {
+        // Update shield bar
+        const shieldPercent = (userIcon.shield / userIcon.maxShield) * 100;
+        shieldBar.style.width = shieldPercent + '%';
+        shieldValue.textContent = Math.floor(shieldPercent) + '%';
+        shieldBar.classList.toggle('low', shieldPercent < 30);
+        
+        // Update health bar
+        const healthPercent = userIcon.health;
+        healthBar.style.width = healthPercent + '%';
+        healthValue.textContent = Math.floor(healthPercent) + '%';
+        healthBar.className = 'bar-fill health';
+        if (healthPercent < 25) {
+          healthBar.classList.add('low');
+        } else if (healthPercent < 50) {
+          healthBar.classList.add('medium');
+        }
+        
+        // Update score display
+        scoreDisplay.textContent = score.toLocaleString();
+        
+        // Update colony counter
+        colonyDisplay.textContent = bees.length;
+        
+        // Game over check - trigger explosion instead of immediate game over
+        if (userIcon.health <= 0 && !gameOver && !userExplosion) {
+          // Stop engine sound
+          stopEngineSound();
+          
+          // Play explosion sound
+          playExplosionSound();
+          
+          // Start explosion animation
+          userExplosion = {
+            x: userIcon.x,
+            y: userIcon.y,
+            duration: 2500, // 2.5 second explosion
+            maxDuration: 2500,
+            radius: 20
+          };
+          // Hide user icon during explosion
+          userIcon = null;
+        }
+      }
+    }
+
+    function drawHex(x, y, size, progress, honeyFill, cellHp, cellMaxHp) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 3 * i + Math.PI / 6;
+        const px = Math.cos(a) * size * progress;
+        const py = Math.sin(a) * size * progress;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+      
+      // Calculate damage level for visual feedback
+      const hpRatio = cellHp / cellMaxHp;
+      const isDamaged = hpRatio < 1;
+      
+      // Adjust stroke color based on damage
+      if (isDamaged) {
+        const damageLevel = 1 - hpRatio;
+        ctx.strokeStyle = `rgba(${255 - damageLevel * 100},${235 - damageLevel * 150},${179 - damageLevel * 100},${0.8 - damageLevel * 0.3})`;
+      } else {
+        ctx.strokeStyle = 'rgba(255,235,179,0.8)';
+      }
+      
+      // Check if cell is completely filled with honey
+      const isCompletelyFilled = honeyFill >= honeyPerCell;
+      
+      if (isCompletelyFilled) {
+        // Completely filled cell: fill entire hexagon with yellow
+        ctx.fillStyle = '#ffb300';
+        ctx.fill();
+      } else {
+        // Partially filled or empty: use dark background
+        // Make background darker if damaged
+        if (isDamaged) {
+          const damageLevel = 1 - hpRatio;
+          ctx.fillStyle = `rgba(${29 - damageLevel * 10},${25 - damageLevel * 10},${12 - damageLevel * 5},${0.6 + damageLevel * 0.2})`;
+        } else {
+          ctx.fillStyle = 'rgba(29,25,12,0.6)';
+        }
+        ctx.fill();
+        
+        // Draw partial honey fill if any
+        if (honeyFill > 0) {
+          const f = Math.min(1, honeyFill / honeyPerCell);
+          ctx.save();
+          ctx.clip();
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = '#ffb300';
+          const fillHeight = size * 1.5 * f;
+          ctx.fillRect(-size, size - fillHeight, size * 2, fillHeight + 2);
+          ctx.restore();
+        }
+      }
+      
+      // Draw damage cracks if cell is damaged
+      if (isDamaged) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(100,50,50,${0.3 + (1 - hpRatio) * 0.4})`;
+        ctx.lineWidth = 1;
+        const crackCount = Math.floor((1 - hpRatio) * 3) + 1;
+        for (let i = 0; i < crackCount; i++) {
+          const angle = (Math.PI * 2 * i) / crackCount;
+          const startDist = size * 0.3;
+          const endDist = size * progress * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * startDist, Math.sin(angle) * startDist);
+          ctx.lineTo(Math.cos(angle) * endDist, Math.sin(angle) * endDist);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      
+      // Don't draw game elements if game is over or not started
+      if (gameOver || !gameStarted) return;
+
+      // background glow
+      const grd = ctx.createRadialGradient(center.x, center.y, 20, center.x, center.y, w*0.6);
+      grd.addColorStop(0, 'rgba(255,255,255,0.03)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0,0,w,h);
+
+      // resources
+      resourceSpots.forEach(spot => {
+        const pct = spot.max > 0 ? spot.amount / spot.max : 0;
+        const r = 12 + pct * 30;
+        ctx.beginPath();
+        ctx.arc(spot.x, spot.y, r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(130, 177, 255, ${0.13 + 0.4*pct})`;
+        ctx.fill();
+        ctx.strokeStyle = pct > 0 ? 'rgba(130,177,255,0.8)' : 'rgba(130,177,255,0.25)';
+        ctx.stroke();
+      });
+
+      // hive cells
+      for (let c of cells) {
+        const p = hexToPixel(c.q, c.r);
+        drawHex(p.x, p.y, HEX_SIZE, c.buildProg, c.honey, c.hp || CELL_MAX_HP, c.maxHp || CELL_MAX_HP);
+      }
+
+      // bees
+      bees.forEach(bee => {
+        ctx.save();
+        ctx.translate(bee.x, bee.y);
+        const tx = (bee.target ? bee.target.x : center.x) - bee.x;
+        const ty = (bee.target ? bee.target.y : center.y) - bee.y;
+        ctx.rotate(Math.atan2(ty, tx));
+        
+        // Draw bee body with color based on HP and state
+        const hpRatio = bee.hp / bee.maxHp;
+        let beeColor = hpRatio > 0.66 ? '#ffe082' : hpRatio > 0.33 ? '#ffca28' : '#ff9800';
+        
+        // Attacking bees are more red/orange
+        if (bee.state === 'attack') {
+          beeColor = '#ff6b35'; // Aggressive red-orange
+        }
+        
+        // Frozen bees are blue-tinted
+        if (bee.frozen > 0) {
+          beeColor = '#a0d0ff'; // Light blue when frozen
+        }
+        
+        ctx.beginPath();
+        ctx.moveTo(4, 0);
+        ctx.lineTo(-4, 3);
+        ctx.lineTo(-2, 0);
+        ctx.lineTo(-4, -3);
+        ctx.closePath();
+        ctx.fillStyle = (bee.state === 'return') ? '#ffca28' : beeColor;
+        ctx.fill();
+        
+        // Draw HP bar above bee
+        if (bee.hp < bee.maxHp) {
+          ctx.save();
+          ctx.rotate(-Math.atan2(ty, tx));
+          const barWidth = 8;
+          const barHeight = 2;
+          const barX = -barWidth / 2;
+          const barY = -8;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+          ctx.fillStyle = hpRatio > 0.5 ? '#4caf50' : hpRatio > 0.25 ? '#ff9800' : '#f44336';
+          ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+          ctx.restore();
+        }
+        
+        if (bee.cargo > 0) {
+          ctx.beginPath();
+          ctx.arc(0, -5, 1.5, 0, Math.PI*2);
+          ctx.fillStyle = '#ffb300';
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // bullets
+      bullets.forEach(bullet => {
+        ctx.save();
+        ctx.translate(bullet.x, bullet.y);
+        ctx.rotate(bullet.angle);
+        ctx.beginPath();
+        ctx.arc(0, 0, bullet.radius, 0, Math.PI*2);
+        
+        if (bullet.isHiveBullet) {
+          // Hive bullets: larger, yellow/orange color
+          ctx.fillStyle = 'rgba(255, 200, 50, 0.9)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 150, 0, 0.8)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Trail effect for hive bullets
+          ctx.beginPath();
+          ctx.moveTo(-bullet.radius * 2, 0);
+          ctx.lineTo(0, 0);
+          ctx.strokeStyle = 'rgba(255, 180, 50, 0.6)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        } else {
+          // User bullets: smaller, red color
+          ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 200, 200, 0.8)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          // Add a small trail effect
+          ctx.beginPath();
+          ctx.moveTo(-bullet.radius * 2, 0);
+          ctx.lineTo(0, 0);
+          ctx.strokeStyle = 'rgba(255, 150, 150, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        
+        ctx.restore();
+      });
+
+      // Draw freeze bombs
+      freezeBombs.forEach(bomb => {
+        const progress = bomb.duration / bomb.maxDuration;
+        ctx.save();
+        ctx.translate(bomb.x, bomb.y);
+        ctx.beginPath();
+        ctx.arc(0, 0, bomb.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(100, 200, 255, ${0.2 * progress})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(150, 220, 255, ${0.6 * progress})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw ice particles
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI * 2 * i) / 8;
+          const dist = bomb.radius * 0.7;
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200, 240, 255, ${0.8 * progress})`;
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      // Draw electric blasts
+      electricBlasts.forEach(blast => {
+        const progress = blast.duration / blast.maxDuration;
+        ctx.save();
+        ctx.translate(blast.x, blast.y);
+        
+        // Electric field effect
+        ctx.beginPath();
+        ctx.arc(0, 0, blast.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 255, 100, ${0.8 * progress})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Lightning bolts
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI * 2 * i) / 6;
+          const startDist = blast.radius * 0.3;
+          const endDist = blast.radius * 0.9;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * startDist, Math.sin(angle) * startDist);
+          ctx.lineTo(Math.cos(angle) * endDist, Math.sin(angle) * endDist);
+          ctx.strokeStyle = `rgba(255, 255, 150, ${progress})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        
+        // Center flash
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 200, ${progress})`;
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw spawn indicator
+      if (spawnIndicator) {
+        const progress = spawnIndicator.duration / spawnIndicator.maxDuration;
+        const alpha = progress; // Fade out over time
+        const pulse = Math.sin(progress * Math.PI * 4) * 0.3 + 0.7; // Pulsing effect
+        const radius = 52 + pulse * 26; // Pulsing radius (30% larger: 40*1.3 + pulse*20*1.3)
+        
+        ctx.save();
+        ctx.translate(spawnIndicator.x, spawnIndicator.y);
+        
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(100, 200, 255, ${alpha * 0.6})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Inner ring
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(150, 220, 255, ${alpha * 0.8})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Center point
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 240, 255, ${alpha})`;
+        ctx.fill();
+        
+        // Glow effect
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        gradient.addColorStop(0, `rgba(100, 200, 255, ${alpha * 0.3})`);
+        gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+      }
+
+      // Draw user explosion
+      if (userExplosion) {
+        const progress = 1 - (userExplosion.duration / userExplosion.maxDuration);
+        const alpha = 1 - progress; // Fade out over time
+        const radius = userExplosion.radius;
+        
+        ctx.save();
+        ctx.translate(userExplosion.x, userExplosion.y);
+        
+        // Outer explosion ring (orange/red)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        const outerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        outerGradient.addColorStop(0, `rgba(255, 100, 50, ${alpha * 0.8})`);
+        outerGradient.addColorStop(0.5, `rgba(255, 150, 0, ${alpha * 0.4})`);
+        outerGradient.addColorStop(1, `rgba(255, 200, 0, 0)`);
+        ctx.fillStyle = outerGradient;
+        ctx.fill();
+        
+        // Middle ring (yellow)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 200, 50, ${alpha * 0.9})`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        
+        // Inner core (bright white/yellow)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+        const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.4);
+        innerGradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+        innerGradient.addColorStop(0.5, `rgba(255, 200, 100, ${alpha * 0.6})`);
+        innerGradient.addColorStop(1, `rgba(255, 150, 50, 0)`);
+        ctx.fillStyle = innerGradient;
+        ctx.fill();
+        
+        // Explosion particles (sparks)
+        const particleCount = 16;
+        for (let i = 0; i < particleCount; i++) {
+          const angle = (Math.PI * 2 * i) / particleCount;
+          const particleDist = radius * (0.5 + progress * 0.5);
+          const particleX = Math.cos(angle) * particleDist;
+          const particleY = Math.sin(angle) * particleDist;
+          const particleSize = 3 + progress * 2;
+          
+          ctx.beginPath();
+          ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, ${200 - progress * 100}, ${50 + progress * 50}, ${alpha * 0.9})`;
+          ctx.fill();
+        }
+        
+        // Shockwave rings
+        for (let ring = 0; ring < 3; ring++) {
+          const ringProgress = (progress + ring * 0.2) % 1;
+          const ringRadius = radius * ringProgress;
+          const ringAlpha = (1 - ringProgress) * alpha * 0.5;
+          
+          if (ringAlpha > 0) {
+            ctx.beginPath();
+            ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 200, 100, ${ringAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        }
+        
+        ctx.restore();
+      }
+
+      // Draw afterburner trail behind user
+      if (userIcon && userTrail.length > 0) {
+        ctx.save();
+        
+        // Draw trail segments with fade-out effect
+        for (let i = 0; i < userTrail.length; i++) {
+          const point = userTrail[i];
+          const fadeProgress = point.age / point.maxAge; // 0 = new, 1 = old
+          const alpha = 1 - fadeProgress; // Fade from 1 to 0
+          
+          // Skip if completely faded
+          if (alpha <= 0) continue;
+          
+          // Calculate size based on age (smaller as it fades)
+          const baseSize = 4;
+          const size = baseSize * (1 - fadeProgress * 0.7); // Shrink to 30% of original size
+          
+          // Color gradient: bright orange/yellow at front, red/orange in middle, dark red at back
+          let r, g, b;
+          if (fadeProgress < 0.3) {
+            // Front: bright orange/yellow
+            const t = fadeProgress / 0.3;
+            r = 255;
+            g = 200 - t * 50; // 200 to 150
+            b = 50 - t * 30; // 50 to 20
+          } else if (fadeProgress < 0.7) {
+            // Middle: orange to red
+            const t = (fadeProgress - 0.3) / 0.4;
+            r = 255 - t * 50; // 255 to 205
+            g = 150 - t * 100; // 150 to 50
+            b = 20;
+          } else {
+            // Back: dark red
+            const t = (fadeProgress - 0.7) / 0.3;
+            r = 205 - t * 105; // 205 to 100
+            g = 50 - t * 30; // 50 to 20
+            b = 20 - t * 10; // 20 to 10
+          }
+          
+          // Draw trail particle with glow
+          ctx.globalAlpha = alpha * 0.9;
+          
+          // Outer glow
+          const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size * 2);
+          gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`);
+          gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${alpha * 0.3})`);
+          gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, size * 2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Core particle
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Draw connecting line to next point (if exists)
+          if (i < userTrail.length - 1) {
+            const nextPoint = userTrail[i + 1];
+            const nextFadeProgress = nextPoint.age / nextPoint.maxAge;
+            const nextAlpha = 1 - nextFadeProgress;
+            
+            if (nextAlpha > 0) {
+              ctx.globalAlpha = Math.min(alpha, nextAlpha) * 0.4;
+              ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(alpha, nextAlpha) * 0.4})`;
+              ctx.lineWidth = size * 0.8;
+              ctx.beginPath();
+              ctx.moveTo(point.x, point.y);
+              ctx.lineTo(nextPoint.x, nextPoint.y);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        ctx.restore();
+      }
+
+      // user icon (user-controlled) - front and back views
+      // Don't draw user icon if explosion is happening
+      if (userIcon && !userExplosion) {
+        const healthRatio = userIcon.health / 100;
+        
+        // Draw health bar above user icon
+        ctx.save();
+        ctx.translate(userIcon.x, userIcon.y);
+        const barWidth = 20;
+        const barHeight = 3;
+        const barX = -barWidth / 2;
+        const barY = -userIcon.radius - 8;
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Health bar (only show when shield is down or health is low)
+        if (userIcon.shield <= 0 || healthRatio < 0.8) {
+          ctx.fillStyle = healthRatio > 0.5 ? '#4caf50' : healthRatio > 0.25 ? '#ff9800' : '#f44336';
+          ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+        }
+        ctx.restore();
+        
+        // Draw invincibility indicator
+        if (userIcon.invincibilityTimer > 0) {
+          ctx.save();
+          ctx.translate(userIcon.x, userIcon.y);
+          const invincibilityProgress = userIcon.invincibilityTimer / 3000;
+          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7; // Fast pulsing
+          const invincibilityRadius = (userIcon.radius + 8) + pulse * 12;
+          
+          // Outer golden ring
+          ctx.beginPath();
+          ctx.arc(0, 0, invincibilityRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 215, 0, ${invincibilityProgress * 0.8})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          // Middle ring
+          ctx.beginPath();
+          ctx.arc(0, 0, invincibilityRadius * 0.7, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 235, 100, ${invincibilityProgress * 0.9})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Inner ring
+          ctx.beginPath();
+          ctx.arc(0, 0, invincibilityRadius * 0.4, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 255, 150, ${invincibilityProgress})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Glow effect
+          const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, invincibilityRadius);
+          gradient.addColorStop(0, `rgba(255, 215, 0, ${invincibilityProgress * 0.4})`);
+          gradient.addColorStop(0.5, `rgba(255, 235, 100, ${invincibilityProgress * 0.2})`);
+          gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(0, 0, invincibilityRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+        }
+        
+        // Draw shield ring if shield is active
+        if (userIcon.shield > 0) {
+          ctx.save();
+          ctx.translate(userIcon.x, userIcon.y);
+          const shieldRatio = userIcon.shield / userIcon.maxShield;
+          const shieldRadius = userIcon.radius + 4;
+          ctx.beginPath();
+          ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = shieldRatio > 0.5 
+            ? `rgba(100, 200, 255, ${0.3 + shieldRatio * 0.4})` 
+            : `rgba(255, 200, 100, ${0.3 + shieldRatio * 0.4})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Draw shield arc based on remaining shield
+          ctx.beginPath();
+          ctx.arc(0, 0, shieldRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldRatio);
+          ctx.strokeStyle = shieldRatio > 0.5 ? 'rgba(100, 200, 255, 0.8)' : 'rgba(255, 200, 100, 0.8)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+        }
+        
+        ctx.save();
+        ctx.translate(userIcon.x, userIcon.y);
+        ctx.rotate(userIcon.angle);
+        
+        // Determine if facing front (right) or back (left)
+        // Front: angle between -π/2 and π/2 (cos > 0)
+        const isFacingFront = Math.cos(userIcon.angle) > 0;
+        
+        // Color based on health when shield is down
+        let userColor = 'rgba(255, 170, 120, 0.95)';
+        let userColorBack = 'rgba(255, 140, 100, 0.95)';
+        if (userIcon.shield <= 0) {
+          if (healthRatio < 0.25) {
+            userColor = 'rgba(200, 50, 50, 0.95)';
+            userColorBack = 'rgba(180, 40, 40, 0.95)';
+          } else if (healthRatio < 0.5) {
+            userColor = 'rgba(255, 120, 80, 0.95)';
+            userColorBack = 'rgba(255, 100, 60, 0.95)';
+          }
+        }
+        
+        if (isFacingFront) {
+          // Front view: arrow pointing right
+          ctx.beginPath();
+          ctx.moveTo(6, 0);
+          ctx.lineTo(-2, 4);
+          ctx.lineTo(-1, 0);
+          ctx.lineTo(-2, -4);
+          ctx.closePath();
+          ctx.fillStyle = userColor;
+          ctx.fill();
+          ctx.lineWidth = 1.3;
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.stroke();
+          
+          // Front view detail: eyes
+          ctx.beginPath();
+          ctx.arc(2, -2, 1.5, 0, Math.PI*2);
+          ctx.arc(2, 2, 1.5, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.fill();
+        } else {
+          // Back view: arrow pointing left (back)
+          ctx.beginPath();
+          ctx.moveTo(-6, 0);
+          ctx.lineTo(2, 4);
+          ctx.lineTo(1, 0);
+          ctx.lineTo(2, -4);
+          ctx.closePath();
+          ctx.fillStyle = userColorBack;
+          ctx.fill();
+          ctx.lineWidth = 1.3;
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.stroke();
+          
+          // Back view detail: simple marker
+          ctx.beginPath();
+          ctx.arc(0, 0, 2, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = now - last;
+      last = now;
+      update(now, dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // Start screen slider handlers - sync with game sliders
+    startColonySizeInput.oninput = () => {
+      startColonySizeVal.textContent = startColonySizeInput.value;
+      colonySizeInput.value = startColonySizeInput.value;
+      colonySizeVal.textContent = startColonySizeInput.value;
+      if (gameStarted) {
+        createBees(+startColonySizeInput.value);
+      }
+    };
+    startMaxColonySizeInput.oninput = () => {
+      startMaxColonySizeVal.textContent = startMaxColonySizeInput.value;
+      maxColonySizeInput.value = startMaxColonySizeInput.value;
+      maxColonySizeVal.textContent = startMaxColonySizeInput.value;
+    };
+    startResourceCountInput.oninput = () => {
+      startResourceCountVal.textContent = startResourceCountInput.value;
+      resourceCountInput.value = startResourceCountInput.value;
+      resourceCountVal.textContent = startResourceCountInput.value;
+      if (gameStarted) {
+        makeResourceSpots(+startResourceCountInput.value, +startResourceAmountInput.value);
+        bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      }
+    };
+    startResourceAmountInput.oninput = () => {
+      startResourceAmountVal.textContent = startResourceAmountInput.value;
+      resourceAmountInput.value = startResourceAmountInput.value;
+      resourceAmountVal.textContent = startResourceAmountInput.value;
+      if (gameStarted) {
+        makeResourceSpots(+startResourceCountInput.value, +startResourceAmountInput.value);
+        bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      }
+    };
+    startPriorityPercentInput.oninput = () => {
+      startPriorityPercentVal.textContent = startPriorityPercentInput.value + '%';
+      priorityPercentInput.value = startPriorityPercentInput.value;
+      priorityPercentVal.textContent = startPriorityPercentInput.value + '%';
+    };
+    startShotDistanceInput.oninput = () => {
+      startShotDistanceVal.textContent = startShotDistanceInput.value;
+      shotDistanceInput.value = startShotDistanceInput.value;
+      shotDistanceVal.textContent = startShotDistanceInput.value;
+    };
+
+    // Start button handler
+    startBtn.addEventListener('click', () => {
+      // Initialize audio context
+      initAudioContext();
+      
+      // Sync all values from start screen to game
+      colonySizeInput.value = startColonySizeInput.value;
+      colonySizeVal.textContent = startColonySizeInput.value;
+      maxColonySizeInput.value = startMaxColonySizeInput.value;
+      maxColonySizeVal.textContent = startMaxColonySizeInput.value;
+      resourceCountInput.value = startResourceCountInput.value;
+      resourceCountVal.textContent = startResourceCountInput.value;
+      resourceAmountInput.value = startResourceAmountInput.value;
+      resourceAmountVal.textContent = startResourceAmountInput.value;
+      priorityPercentInput.value = startPriorityPercentInput.value;
+      priorityPercentVal.textContent = startPriorityPercentInput.value + '%';
+      shotDistanceInput.value = startShotDistanceInput.value;
+      shotDistanceVal.textContent = startShotDistanceInput.value;
+
+      // Initialize game with these settings
+      createBees(+colonySizeInput.value);
+      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
+      placeUserIcon();
+      updateWeaponUI();
+
+      // Reset score
+      score = 0;
+      destroyedBees = 0;
+      destroyedCells = 0;
+
+      // Hide start screen and start game
+      startScreen.classList.add('hidden');
+      gameStarted = true;
+    });
+
+    // Slider handlers (for in-game adjustments)
+    colonySizeInput.oninput = () => {
+      colonySizeVal.textContent = colonySizeInput.value;
+      startColonySizeInput.value = colonySizeInput.value;
+      startColonySizeVal.textContent = colonySizeInput.value;
+      createBees(+colonySizeInput.value);
+    };
+    maxColonySizeInput.oninput = () => {
+      maxColonySizeVal.textContent = maxColonySizeInput.value;
+      startMaxColonySizeInput.value = maxColonySizeInput.value;
+      startMaxColonySizeVal.textContent = maxColonySizeInput.value;
+    };
+    resourceCountInput.oninput = () => {
+      resourceCountVal.textContent = resourceCountInput.value;
+      startResourceCountInput.value = resourceCountInput.value;
+      startResourceCountVal.textContent = resourceCountInput.value;
+      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
+      bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+    };
+    resourceAmountInput.oninput = () => {
+      resourceAmountVal.textContent = resourceAmountInput.value;
+      startResourceAmountInput.value = resourceAmountInput.value;
+      startResourceAmountVal.textContent = resourceAmountInput.value;
+      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
+      bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+    };
+    priorityPercentInput.oninput = () => {
+      priorityPercentVal.textContent = priorityPercentInput.value + '%';
+      startPriorityPercentInput.value = priorityPercentInput.value;
+      startPriorityPercentVal.textContent = priorityPercentInput.value + '%';
+    };
+    shotDistanceInput.oninput = () => {
+      shotDistanceVal.textContent = shotDistanceInput.value;
+      startShotDistanceInput.value = shotDistanceInput.value;
+      startShotDistanceVal.textContent = shotDistanceInput.value;
+    };
+
+    // Restart function
+    function restartGame() {
+      gameOver = false;
+      gameOverEl.classList.remove('show');
+      
+      // Stop engine sound
+      stopEngineSound();
+      
+      // Reset score
+      score = 0;
+      destroyedBees = 0;
+      destroyedCells = 0;
+      
+      // Reset explosion
+      userExplosion = null;
+      
+      // Reset user
+      placeUserIcon();
+      
+      // Reset trail (already done in placeUserIcon, but ensure it's cleared)
+      userTrail = [];
+      lastTrailX = null;
+      lastTrailY = null;
+      
+      // Reset bees
+      createBees(+colonySizeInput.value);
+      lastBeeAdditionTime = 0;
+      
+      // Reset resources
+      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
+      
+      // Clear bullets
+      bullets = [];
+      
+      // Reset special weapons
+      weapons.freeze.count = 3;
+      weapons.electric.count = 3;
+      weapons.warp.count = 2;
+      freezeBombs = [];
+      electricBlasts = [];
+      currentWeaponIndex = 0;
+      updateWeaponUI();
+      
+      // Reset hive
+      hiveHoney = 0;
+      cells.length = 1;
+      cells[0] = { q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 };
+    }
+    
+    restartBtn.addEventListener('click', restartGame);
+    
+    // Return to settings function
+    function returnToSettings() {
+      gameOver = false;
+      gameStarted = false;
+      gameOverEl.classList.remove('show');
+      startScreen.classList.remove('hidden');
+      
+      // Stop engine sound
+      stopEngineSound();
+      
+      // Clear game state
+      bullets = [];
+      freezeBombs = [];
+      electricBlasts = [];
+      userTrail = [];
+      lastTrailX = null;
+      lastTrailY = null;
+      userExplosion = null;
+      spawnIndicator = null;
+      userIcon = null;
+      bees = [];
+      cells.length = 0;
+      resourceSpots = [];
+      
+      // Reset score
+      score = 0;
+      destroyedBees = 0;
+      destroyedCells = 0;
+    }
+    
+    settingsBtn.addEventListener('click', returnToSettings);
+    
+    // Allow restart with R key
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'r' && gameOver) {
+        restartGame();
+      }
+    });
+
+    // Initialize start screen slider values
+    startColonySizeVal.textContent = startColonySizeInput.value;
+    startMaxColonySizeVal.textContent = startMaxColonySizeInput.value;
+    startResourceCountVal.textContent = startResourceCountInput.value;
+    startResourceAmountVal.textContent = startResourceAmountInput.value;
+    startPriorityPercentVal.textContent = startPriorityPercentInput.value + '%';
+    startShotDistanceVal.textContent = startShotDistanceInput.value;
+    
+    // Initialize game UI values (but don't start game yet)
+    maxColonySizeVal.textContent = maxColonySizeInput.value;
+    priorityPercentVal.textContent = priorityPercentInput.value + '%';
+    shotDistanceVal.textContent = shotDistanceInput.value;
+    
+    // Start the game loop (it won't update/draw until gameStarted is true)
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

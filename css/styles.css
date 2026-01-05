@@ -1,0 +1,375 @@
+:root {
+  --bg: #10131a;
+  --panel: rgba(15, 17, 25, 0.6);
+  --text: #fff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #18202e 0%, #0b0d11 60%, #020203 100%);
+  color: var(--text);
+  overflow: hidden;
+}
+#ui {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  padding: 12px 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+#ui h1 {
+  font-size: 18px;
+  margin: 0;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffe082 0%, #ffb300 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+}
+.stat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.score-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffe082;
+  text-shadow: 0 0 10px rgba(255, 224, 130, 0.5);
+  white-space: nowrap;
+}
+.health-shield-container {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+.bar-container {
+  position: relative;
+  min-width: 120px;
+}
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bar-label .value {
+  color: #fff;
+}
+.bar-bg {
+  width: 100%;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.2s ease, background 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.bar-fill.shield {
+  background: linear-gradient(90deg, #64c8ff 0%, #4da6ff 100%);
+}
+.bar-fill.shield.low {
+  background: linear-gradient(90deg, #ffc864 0%, #ffb84d 100%);
+}
+.bar-fill.health {
+  background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+}
+.bar-fill.health.medium {
+  background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+}
+.bar-fill.health.low {
+  background: linear-gradient(90deg, #f44336 0%, #d32f2f 100%);
+}
+.weapons-section {
+  border-left: 1px solid rgba(255,255,255,0.1);
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.weapons-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.weapons-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+.weapon-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  min-width: 50px;
+}
+.weapon-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.weapon-card.selected {
+  background: rgba(255, 179, 0, 0.2);
+  border-color: #ffb300;
+  box-shadow: 0 0 12px rgba(255, 179, 0, 0.4);
+}
+.weapon-card.empty {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.weapon-icon {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+.weapon-name {
+  font-size: 8px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.weapon-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffe082;
+}
+.weapon-card.empty .weapon-count {
+  color: rgba(255, 255, 255, 0.3);
+}
+.selected-indicator {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background: #ffb300;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 8px rgba(255, 179, 0, 0.8);
+}
+#legend {
+  font-size: 10px;
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 2px 6px;
+  border-radius: 99px;
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot.hex { background: rgba(255, 236, 179, 0.8); }
+.dot.bee { background: #ffe082; }
+.dot.honey { background: #ffb300; }
+.dot.flower { background: #82b1ff; }
+canvas { display: block; }
+#gameOver {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+#gameOver.show {
+  display: flex;
+}
+#gameOver h2 {
+  font-size: 48px;
+  margin: 0 0 20px;
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+#gameOver p {
+  font-size: 18px;
+  margin: 0 0 30px;
+  opacity: 0.9;
+}
+#gameOver .button-container {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+#restartBtn, #settingsBtn {
+  padding: 12px 24px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#restartBtn:hover, #settingsBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+#startScreen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+  padding: 40px 20px;
+}
+#startScreen.hidden {
+  display: none;
+}
+#startScreenContent {
+  max-width: 600px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 40px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+#startScreen h1 {
+  font-size: 56px;
+  margin: 0 0 10px;
+  text-align: center;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffe082 0%, #ffb300 50%, #ff9800 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(255, 179, 0, 0.5);
+}
+#startScreen .subtitle {
+  text-align: center;
+  font-size: 16px;
+  opacity: 0.7;
+  margin-bottom: 40px;
+}
+#startScreen .section {
+  margin-bottom: 30px;
+}
+#startScreen .section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+#startScreen .control {
+  margin-bottom: 15px;
+}
+#startScreen .control label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+#startScreen .controls-info {
+  font-size: 12px;
+  line-height: 1.8;
+  opacity: 0.8;
+}
+#startScreen .controls-info strong {
+  color: #ffe082;
+  font-weight: 600;
+}
+#startScreen .legend-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+#startScreen .badge {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+#startBtn {
+  width: 100%;
+  padding: 16px 32px;
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ffb300 0%, #ff9800 100%);
+  border: none;
+  border-radius: 12px;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 30px;
+  box-shadow: 0 4px 15px rgba(255, 179, 0, 0.4);
+}
+#startBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 179, 0, 0.6);
+}
+#startBtn:active {
+  transform: translateY(0);
+}
+

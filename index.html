@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Beehive Construction Simulation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="startScreen">
+    <div id="startScreenContent">
+      <h1>Bee-Brave</h1>
+      <div class="subtitle">Configure your game settings and prepare for battle!</div>
+
+      <div class="section">
+        <div class="section-title">Game Settings</div>
+        <div class="control">
+          <label for="startColonySize">
+            Colony size
+            <span id="startColonySizeVal">12</span>
+          </label>
+          <input type="range" min="3" max="30" value="12" id="startColonySize">
+        </div>
+
+        <div class="control">
+          <label for="startMaxColonySize">
+            Max colony size
+            <span id="startMaxColonySizeVal">30</span>
+          </label>
+          <input type="range" min="3" max="100" value="30" id="startMaxColonySize">
+        </div>
+
+        <div class="control">
+          <label for="startResourceCount">
+            Resource locations
+            <span id="startResourceCountVal">6</span>
+          </label>
+          <input type="range" min="1" max="20" value="6" id="startResourceCount">
+        </div>
+
+        <div class="control">
+          <label for="startResourceAmount">
+            Resource amount
+            <span id="startResourceAmountVal">120</span>
+          </label>
+          <input type="range" min="20" max="300" value="120" id="startResourceAmount">
+        </div>
+
+        <div class="control">
+          <label for="startPriorityPercent">
+            % bees prefer 90%+ sites
+            <span id="startPriorityPercentVal">60%</span>
+          </label>
+          <input type="range" min="0" max="100" value="60" id="startPriorityPercent">
+        </div>
+
+        <div class="control">
+          <label for="startShotDistance">
+            Shot distance
+            <span id="startShotDistanceVal">200</span>
+          </label>
+          <input type="range" min="50" max="500" value="200" id="startShotDistance">
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Controls</div>
+        <div class="controls-info">
+          <div><strong>Movement:</strong> A/← (left), W/↑ (up), S/X/↓ (down), D/→ (right)</div>
+          <div><strong>Shoot:</strong> Space</div>
+          <div><strong>Special Weapon:</strong> V (Freeze Bomb, Electric Blast, or Warp)</div>
+          <div><strong>Cycle Weapon:</strong> Shift</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Legend</div>
+        <div class="legend-section">
+          <span class="badge"><span class="dot hex"></span>Hive cell</span>
+          <span class="badge"><span class="dot honey"></span>Honey-filled</span>
+          <span class="badge"><span class="dot bee"></span>Worker bee</span>
+          <span class="badge"><span class="dot flower"></span>Resource</span>
+        </div>
+      </div>
+
+      <button id="startBtn">Start Game</button>
+    </div>
+  </div>
+
+  <div id="ui">
+    <h1>Bee-brave</h1>
+
+    <!-- Hidden sliders for JavaScript reference (values synced from start screen) -->
+    <div style="display: none;">
+      <input type="range" min="3" max="30" value="12" id="colonySize">
+      <input type="range" min="3" max="100" value="30" id="maxColonySize">
+      <input type="range" min="1" max="20" value="6" id="resourceCount">
+      <input type="range" min="20" max="300" value="120" id="resourceAmount">
+      <input type="range" min="0" max="100" value="60" id="priorityPercent">
+      <input type="range" min="50" max="500" value="200" id="shotDistance">
+      <span id="colonySizeVal">12</span>
+      <span id="maxColonySizeVal">30</span>
+      <span id="resourceCountVal">6</span>
+      <span id="resourceAmountVal">120</span>
+      <span id="priorityPercentVal">60%</span>
+      <span id="shotDistanceVal">200</span>
+    </div>
+
+    <!-- Score Display -->
+    <div class="stat-section">
+      <div class="stat-label">Score</div>
+      <div class="score-display" id="scoreDisplay">0</div>
+    </div>
+
+    <!-- Colony Counter -->
+    <div class="stat-section">
+      <div class="stat-label">Colony</div>
+      <div class="score-display" id="colonyDisplay">0</div>
+    </div>
+
+    <!-- Health & Shield Bars -->
+    <div class="stat-section health-shield-container">
+      <div class="bar-container">
+        <div class="bar-label">
+          <span>🛡️ Shield</span>
+          <span class="value" id="shieldValue">100%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill shield" id="shieldBar" style="width: 100%;"></div>
+        </div>
+      </div>
+      <div class="bar-container">
+        <div class="bar-label">
+          <span>❤️ Health</span>
+          <span class="value" id="healthValue">100%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill health" id="healthBar" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Special Weapons -->
+    <div class="stat-section weapons-section">
+      <div class="weapons-title">Special Weapons</div>
+      <div class="weapons-grid">
+        <div class="weapon-card" id="weaponFreeze" data-weapon="freeze">
+          <div class="weapon-icon">❄️</div>
+          <div class="weapon-name">Freeze</div>
+          <div class="weapon-count" id="freezeCount">3</div>
+        </div>
+        <div class="weapon-card" id="weaponElectric" data-weapon="electric">
+          <div class="weapon-icon">⚡</div>
+          <div class="weapon-name">Electric</div>
+          <div class="weapon-count" id="electricCount">3</div>
+        </div>
+        <div class="weapon-card" id="weaponWarp" data-weapon="warp">
+          <div class="weapon-icon">🌀</div>
+          <div class="weapon-name">Warp</div>
+          <div class="weapon-count" id="warpCount">2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="gameOver">
+    <h2>GAME OVER</h2>
+    <p>Your health has been depleted!</p>
+    <div class="button-container">
+      <button id="restartBtn">Restart Game</button>
+      <button id="settingsBtn">Return to Settings</button>
+    </div>
+  </div>
+
+  <script src="js/sound-fx.js"></script>
+  <script src="js/user.js"></script>
+  <script src="js/bees.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+
