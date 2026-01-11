@@ -986,6 +986,8 @@
     // Game state
     let gameOver = false;
     let gameStarted = false;
+    let gameStartTime = 0; // Timestamp when the game started
+    const HIVE_PROTECTION_DURATION = 10000; // 1 minute of hive protection at start
     const gameOverEl = document.getElementById('gameOver');
     const restartBtn = document.getElementById('restartBtn');
     const settingsBtn = document.getElementById('settingsBtn');
@@ -1178,6 +1180,13 @@
     const BEE_ADDITION_COOLDOWN = 1000; // Add bees at most once per second
     const BEE_MAX_HP = 3;
     const BEE_ATTACK_RANGE = 200; // Distance at which bees detect and attack the user
+    const BEE_HUNT_SPEED_MULTIPLIER = 1.8; // Hunting bees are faster
+    const BEE_FLANK_ANGLE = Math.PI / 4; // 45 degrees for flanking maneuvers
+    
+    // Check if all resources have been gathered
+    function areAllResourcesDepleted() {
+      return resourceSpots.every(r => r.amount <= 0);
+    }
     function makeBee() {
       return {
         x: center.x + (Math.random() * 10 - 5),
@@ -1625,13 +1634,16 @@
         
         // User bullets check collision with hive cells (skip for hive bullets)
         if (!bullet.isHiveBullet) {
+          // Check if hive is still protected (first minute of game)
+          const hiveProtected = (now - gameStartTime) < HIVE_PROTECTION_DURATION;
+          
           const hitCell = getCellAtPoint(bullet.x, bullet.y);
           if (hitCell) {
             // Bullet hit a cell - damage any bees in that cell
             const cellCenter = hexToPixel(hitCell.q, hitCell.r);
             const cellSize = HEX_SIZE * hitCell.buildProg;
             
-            // Find bees in this cell
+            // Find bees in this cell (can always hit bees, even during protection)
             let beesHit = false;
             for (let i = bees.length - 1; i >= 0; i--) {
               const bee = bees[i];
@@ -1647,19 +1659,22 @@
               }
             }
             
-            // Damage the cell itself
-            if (hitCell.honey > 0) {
-              // Cell has honey - deplete honey first
-              hitCell.honey = Math.max(0, hitCell.honey - HONEY_DAMAGE_PER_HIT);
-            } else {
-              // No honey - damage the cell structure
-              hitCell.hp -= 1;
-              if (hitCell.hp <= 0) {
-                // Cell destroyed - remove it
-                const cellIndex = cells.indexOf(hitCell);
-                if (cellIndex !== -1) {
-                  cells.splice(cellIndex, 1);
-                  destroyedCells++;
+            // Only damage the cell if protection period has ended
+            if (!hiveProtected) {
+              // Damage the cell itself
+              if (hitCell.honey > 0) {
+                // Cell has honey - deplete honey first
+                hitCell.honey = Math.max(0, hitCell.honey - HONEY_DAMAGE_PER_HIT);
+              } else {
+                // No honey - damage the cell structure
+                hitCell.hp -= 1;
+                if (hitCell.hp <= 0) {
+                  // Cell destroyed - remove it
+                  const cellIndex = cells.indexOf(hitCell);
+                  if (cellIndex !== -1) {
+                    cells.splice(cellIndex, 1);
+                    destroyedCells++;
+                  }
                 }
               }
             }
@@ -1757,8 +1772,13 @@
             // Only apply damage if not invincible
             if (!isInvincible) {
               takingDamage = true;
-              // Attacking bees deal more damage
-              const damageMultiplier = bee.state === 'attack' ? 1.5 : 1.0;
+              // Attacking/hunting bees deal more damage - hunting bees deal the most
+              let damageMultiplier = 1.0;
+              if (bee.state === 'hunt') {
+                damageMultiplier = 2.0; // Hunting bees are most dangerous
+              } else if (bee.state === 'attack') {
+                damageMultiplier = 1.5;
+              }
               attackingBeesCount += damageMultiplier;
               
               // Collision! Damage shield first
@@ -1805,8 +1825,11 @@
         // Health doesn't regenerate automatically - player needs to avoid damage
       }
 
+      // Check if all resources are depleted - triggers strategic attack mode
+      const allResourcesDepleted = areAllResourcesDepleted();
+      
       // bees
-      bees.forEach(bee => {
+      bees.forEach((bee, beeIndex) => {
         bee.wobble += bee.wobbleSpeed * dt * 0.001;
         
         // Check if user is within attack range
@@ -1815,8 +1838,49 @@
           userDistance = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
         }
 
-        // Attack behavior: bees attack if user is nearby
-        if (userIcon && userDistance < BEE_ATTACK_RANGE) {
+        // STRATEGIC HUNTING MODE: When all resources are depleted, bees hunt the player
+        if (allResourcesDepleted && userIcon) {
+          // Force all non-returning bees into hunt mode
+          if (bee.state !== 'return' && bee.state !== 'hunt') {
+            bee.state = 'hunt';
+            bee.cargo = 0;
+            bee.resourceSpot = null;
+          }
+          
+          if (bee.state === 'hunt') {
+            // Strategic positioning: bees try to surround the player
+            // Different bees approach from different angles based on their index
+            const totalHunters = bees.filter(b => b.state === 'hunt').length;
+            const hunterIndex = bees.filter((b, i) => b.state === 'hunt' && i <= beeIndex).length - 1;
+            
+            // Calculate flanking angle - distribute bees in a circle around the player
+            const baseAngle = Math.atan2(userIcon.y - center.y, userIcon.x - center.x);
+            const spreadAngle = (2 * Math.PI * hunterIndex) / Math.max(1, totalHunters);
+            const flankAngle = baseAngle + spreadAngle;
+            
+            // Target position: approach from flanking angle, but close in when near
+            const approachDistance = 30; // How close bees try to get before direct attack
+            const flankDistance = Math.max(approachDistance, userDistance * 0.5);
+            
+            if (userDistance > approachDistance + 20) {
+              // Flanking approach - come at player from different angles
+              const targetX = userIcon.x + Math.cos(flankAngle + Math.PI) * flankDistance;
+              const targetY = userIcon.y + Math.sin(flankAngle + Math.PI) * flankDistance;
+              bee.target = { x: targetX, y: targetY };
+            } else {
+              // Close enough - go directly for the player
+              bee.target = { x: userIcon.x, y: userIcon.y };
+            }
+            
+            // Occasionally re-evaluate strategy (creates more dynamic movement)
+            if (Math.random() < 0.01) {
+              // Small chance to switch to direct attack for unpredictability
+              bee.target = { x: userIcon.x + (Math.random() * 40 - 20), y: userIcon.y + (Math.random() * 40 - 20) };
+            }
+          }
+        }
+        // Normal attack behavior: bees attack if user is nearby (when resources exist)
+        else if (userIcon && userDistance < BEE_ATTACK_RANGE) {
           if (bee.state === 'forage' || bee.state === 'idle') {
             bee.state = 'attack';
             bee.attackCooldown = 2000; // 2 seconds of attack persistence
@@ -1843,6 +1907,7 @@
             bee.resourceSpot = spot;
             bee.target = { x: spot.x + (Math.random()*10-5), y: spot.y + (Math.random()*10-5) };
           } else {
+            // No resources available - if all depleted, this will trigger hunt mode next frame
             bee.state = 'idle';
             bee.target = { x: center.x + (Math.random()*40 - 20), y: center.y + (Math.random()*40 - 20) };
           }
@@ -1863,9 +1928,18 @@
         }
         const frozenMultiplier = bee.frozen > 0 ? 0.1 : 1.0; // Almost stopped when frozen
         
-        // Attacking bees move faster and more directly
-        const speedMultiplier = bee.state === 'attack' ? 1.5 : 1.0;
-        const wobbleMultiplier = bee.state === 'attack' ? 0.3 : 1.0; // Less wobble when attacking
+        // Speed multipliers based on state
+        let speedMultiplier = 1.0;
+        let wobbleMultiplier = 1.0;
+        
+        if (bee.state === 'hunt') {
+          // Hunting bees are fastest and most direct
+          speedMultiplier = BEE_HUNT_SPEED_MULTIPLIER;
+          wobbleMultiplier = 0.2; // Very little wobble - focused hunting
+        } else if (bee.state === 'attack') {
+          speedMultiplier = 1.5;
+          wobbleMultiplier = 0.3;
+        }
         
         bee.x += (dirX * bee.speed * speedMultiplier * frozenMultiplier + wobX * wobbleMultiplier * frozenMultiplier) * (dt * 0.06);
         bee.y += (dirY * bee.speed * speedMultiplier * frozenMultiplier + wobY * wobbleMultiplier * frozenMultiplier) * (dt * 0.06);
@@ -2072,6 +2146,52 @@
         const p = hexToPixel(c.q, c.r);
         drawHex(p.x, p.y, HEX_SIZE, c.buildProg, c.honey, c.hp || CELL_MAX_HP, c.maxHp || CELL_MAX_HP);
       }
+      
+      // Draw hive protection shield effect
+      const protectionTimeRemaining = HIVE_PROTECTION_DURATION - (performance.now() - gameStartTime);
+      if (protectionTimeRemaining > 0) {
+        ctx.save();
+        
+        // Calculate shield radius to encompass all cells
+        let maxDist = 0;
+        cells.forEach(c => {
+          const p = hexToPixel(c.q, c.r);
+          const dist = Math.hypot(p.x - center.x, p.y - center.y);
+          maxDist = Math.max(maxDist, dist);
+        });
+        const shieldRadius = maxDist + HEX_SIZE * 1.5;
+        
+        // Pulsing shield effect
+        const pulsePhase = performance.now() * 0.003;
+        const pulseIntensity = 0.15 + 0.1 * Math.sin(pulsePhase);
+        
+        // Draw shield dome
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, shieldRadius, 0, Math.PI * 2);
+        const shieldGradient = ctx.createRadialGradient(
+          center.x, center.y, shieldRadius * 0.5,
+          center.x, center.y, shieldRadius
+        );
+        shieldGradient.addColorStop(0, `rgba(100, 200, 255, 0)`);
+        shieldGradient.addColorStop(0.7, `rgba(100, 200, 255, ${pulseIntensity * 0.3})`);
+        shieldGradient.addColorStop(1, `rgba(100, 200, 255, ${pulseIntensity})`);
+        ctx.fillStyle = shieldGradient;
+        ctx.fill();
+        
+        // Shield border
+        ctx.strokeStyle = `rgba(150, 220, 255, ${0.4 + 0.2 * Math.sin(pulsePhase)})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw protection timer text
+        const secondsRemaining = Math.ceil(protectionTimeRemaining / 1000);
+        ctx.fillStyle = 'rgba(150, 220, 255, 0.9)';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(`HIVE PROTECTED: ${secondsRemaining}s`, center.x, center.y - shieldRadius - 10);
+        
+        ctx.restore();
+      }
 
       // bees
       bees.forEach(bee => {
@@ -2085,8 +2205,21 @@
         const hpRatio = bee.hp / bee.maxHp;
         let beeColor = hpRatio > 0.66 ? '#ffe082' : hpRatio > 0.33 ? '#ffca28' : '#ff9800';
         
+        // Hunting bees have a menacing red glow and darker color
+        if (bee.state === 'hunt') {
+          beeColor = '#ff3333'; // Aggressive red
+          // Draw danger aura for hunting bees
+          ctx.save();
+          ctx.rotate(-Math.atan2(ty, tx));
+          const pulseIntensity = 0.3 + 0.2 * Math.sin(Date.now() * 0.01 + bee.wobble);
+          ctx.beginPath();
+          ctx.arc(0, 0, 10, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 50, 50, ${pulseIntensity})`;
+          ctx.fill();
+          ctx.restore();
+        }
         // Attacking bees are more red/orange
-        if (bee.state === 'attack') {
+        else if (bee.state === 'attack') {
           beeColor = '#ff6b35'; // Aggressive red-orange
         }
         
@@ -2659,6 +2792,7 @@
       // Hide start screen and start game
       startScreen.classList.add('hidden');
       gameStarted = true;
+      gameStartTime = performance.now(); // Record when game started for hive protection timer
     });
 
     // Slider handlers (for in-game adjustments)
@@ -2710,6 +2844,9 @@
       score = 0;
       destroyedBees = 0;
       destroyedCells = 0;
+      
+      // Reset hive protection timer
+      gameStartTime = performance.now();
       
       // Reset explosion
       userExplosion = null;
