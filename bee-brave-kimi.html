@@ -998,6 +998,9 @@
     let userIcon = null;
     let spawnIndicator = null; // { x, y, duration, maxDuration }
     let userExplosion = null; // { x, y, duration, maxDuration, radius }
+    let hunterExplosions = []; // Array of { x, y, duration, maxDuration, radius } for hunter death explosions
+    let beeExplosions = []; // Array of { x, y, duration, maxDuration, radius } for regular bee death explosions
+    let cellExplosions = []; // Array of { x, y, duration, maxDuration, radius } for cell destruction explosions
     let userTrail = []; // Array of { x, y, age, maxAge } for afterburner trail
     const TRAIL_MAX_AGE = 800; // Trail points fade out over 800ms
     const TRAIL_SPACING = 3; // Add trail point every N pixels of movement
@@ -1209,6 +1212,167 @@
       bees = [];
       for (let i = 0; i < count; i++) bees.push(makeBee());
     }
+    
+    // Hunter bee factory
+    function makeHunterBee(x, y) {
+      return {
+        x,
+        y,
+        hp: HUNTER_BEE_HP,
+        maxHp: HUNTER_BEE_HP,
+        shield: HUNTER_BEE_SHIELD,
+        maxShield: HUNTER_BEE_SHIELD,
+        speed: HUNTER_BEE_SPEED,
+        size: HUNTER_BEE_SIZE,
+        fireCooldown: 0,
+        angle: 0,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 2 + Math.random(),
+        frozen: 0  // Must initialize frozen to 0 so they can fire!
+      };
+    }
+    
+    // Spawn dropship at a distance from the user
+    function spawnDropship() {
+      if (dropship || !userIcon) return;
+      
+      // Calculate spawn position at a distance from user
+      const angle = Math.random() * Math.PI * 2;
+      const spawnX = userIcon.x + Math.cos(angle) * HUNTER_SPAWN_DISTANCE;
+      const spawnY = userIcon.y + Math.sin(angle) * HUNTER_SPAWN_DISTANCE;
+      
+      // Clamp to screen bounds
+      const targetX = Math.min(Math.max(spawnX, 50), w - 50);
+      const targetY = Math.min(Math.max(spawnY, 50), h - 50);
+      
+      dropship = {
+        x: targetX - Math.cos(angle) * 150, // Start further away
+        y: targetY - Math.sin(angle) * 150,
+        targetX: targetX,
+        targetY: targetY,
+        phase: 'arriving',
+        deployTimer: 0,
+        angle: angle + Math.PI // Face toward user
+      };
+    }
+    
+    // Update dropship movement and deployment
+    function updateDropship(dt) {
+      if (!dropship) return;
+      
+      if (dropship.phase === 'arriving') {
+        // Move toward target position
+        const dx = dropship.targetX - dropship.x;
+        const dy = dropship.targetY - dropship.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist > 5) {
+          dropship.x += (dx / dist) * 3 * (dt * 0.06);
+          dropship.y += (dy / dist) * 3 * (dt * 0.06);
+        } else {
+          dropship.phase = 'deploying';
+          dropship.deployTimer = 1500; // 1.5 second deploy animation
+        }
+      } else if (dropship.phase === 'deploying') {
+        dropship.deployTimer -= dt;
+        
+        if (dropship.deployTimer <= 0) {
+          // Deploy 2 hunter bees
+          const spawnOffsets = [{ x: -20, y: 15 }, { x: -20, y: -15 }];
+          spawnOffsets.forEach(offset => {
+            const beeX = dropship.x + Math.cos(dropship.angle) * offset.x - Math.sin(dropship.angle) * offset.y;
+            const beeY = dropship.y + Math.sin(dropship.angle) * offset.x + Math.cos(dropship.angle) * offset.y;
+            hunterBees.push(makeHunterBee(beeX, beeY));
+          });
+          
+          dropship.phase = 'leaving';
+        }
+      } else if (dropship.phase === 'leaving') {
+        // Fly away from user
+        const awayAngle = dropship.angle + Math.PI;
+        dropship.x += Math.cos(awayAngle) * 4 * (dt * 0.06);
+        dropship.y += Math.sin(awayAngle) * 4 * (dt * 0.06);
+        
+        // Remove when off screen
+        if (dropship.x < -100 || dropship.x > w + 100 || dropship.y < -100 || dropship.y > h + 100) {
+          dropship = null;
+        }
+      }
+    }
+    
+    // Update hunter bees - aggressive pursuit and laser firing
+    function updateHunterBees(dt) {
+      for (let i = hunterBees.length - 1; i >= 0; i--) {
+        const hunter = hunterBees[i];
+        
+        if (!userIcon) continue;
+        
+        // Wobble animation
+        hunter.wobble += hunter.wobbleSpeed * dt * 0.001;
+        
+        // Hunter shields do NOT regenerate - once depleted, they stay depleted
+        
+        // Update frozen state
+        if (hunter.frozen > 0) {
+          hunter.frozen = Math.max(0, hunter.frozen - dt);
+        }
+        const frozenMultiplier = hunter.frozen > 0 ? 0.2 : 1.0; // Slowed when frozen
+        
+        // Move toward user aggressively
+        const dx = userIcon.x - hunter.x;
+        const dy = userIcon.y - hunter.y;
+        const dist = Math.hypot(dx, dy);
+        hunter.angle = Math.atan2(dy, dx);
+        
+        // Keep some distance for shooting (optimal range)
+        const optimalRange = 120;
+        if (dist > optimalRange) {
+          hunter.x += (dx / dist) * hunter.speed * frozenMultiplier * (dt * 0.06);
+          hunter.y += (dy / dist) * hunter.speed * frozenMultiplier * (dt * 0.06);
+        } else if (dist < optimalRange * 0.6) {
+          // Too close - back off slightly
+          hunter.x -= (dx / dist) * hunter.speed * 0.5 * frozenMultiplier * (dt * 0.06);
+          hunter.y -= (dy / dist) * hunter.speed * 0.5 * frozenMultiplier * (dt * 0.06);
+        }
+        
+        // Add slight wobble for organic movement
+        hunter.x += Math.cos(hunter.wobble) * 0.3 * frozenMultiplier;
+        hunter.y += Math.sin(hunter.wobble * 0.7) * 0.3 * frozenMultiplier;
+        
+        // Keep in bounds
+        hunter.x = Math.min(Math.max(hunter.x, hunter.size), w - hunter.size);
+        hunter.y = Math.min(Math.max(hunter.y, hunter.size), h - hunter.size);
+        
+        // Fire laser at user (can't fire when frozen)
+        hunter.fireCooldown = Math.max(0, hunter.fireCooldown - dt);
+        if (hunter.fireCooldown <= 0 && dist < 300 && hunter.frozen <= 0) {
+          // Fire laser with slight inaccuracy
+          const inaccuracy = (Math.random() - 0.5) * 0.15;
+          const fireAngle = hunter.angle + inaccuracy;
+          
+          bullets.push({
+            x: hunter.x + Math.cos(hunter.angle) * hunter.size,
+            y: hunter.y + Math.sin(hunter.angle) * hunter.size,
+            vx: Math.cos(fireAngle) * HUNTER_LASER_SPEED,
+            vy: Math.sin(fireAngle) * HUNTER_LASER_SPEED,
+            angle: fireAngle,
+            maxDistance: 400,
+            distanceTraveled: 0,
+            radius: 4,
+            isHunterLaser: true,
+            damage: HUNTER_LASER_DAMAGE
+          });
+          hunter.fireCooldown = HUNTER_FIRE_COOLDOWN;
+        }
+        
+        // Remove if destroyed
+        if (hunter.hp <= 0) {
+          createHunterExplosion(hunter.x, hunter.y);
+          hunterBees.splice(i, 1);
+          destroyedBees += 5; // Worth more points!
+        }
+      }
+    }
 
     // Bullets/projectiles
     let bullets = [];
@@ -1227,6 +1391,54 @@
     // Active weapon effects
     let freezeBombs = []; // { x, y, radius, duration, maxDuration }
     let electricBlasts = []; // { x, y, radius, duration, maxDuration }
+    
+    // Hunter bee system - spawns when user is idle
+    const IDLE_THRESHOLD = 5000; // 5 seconds of inactivity triggers dropship
+    const HUNTER_SPAWN_DISTANCE = 250; // Distance from user where dropship appears
+    let hunterBees = [];
+    let dropship = null; // { x, y, targetX, targetY, phase: 'arriving'|'deploying'|'leaving', deployTimer, angle }
+    
+    // Hunter bee properties
+    const HUNTER_BEE_HP = 8;
+    const HUNTER_BEE_SHIELD = 25;  // Reduced from 50 - shields are now weaker
+    const HUNTER_BEE_SPEED = 2.5;
+    const HUNTER_BEE_SIZE = 12; // Much larger than normal bees
+    const HUNTER_FIRE_COOLDOWN = 1500; // 1.5 seconds between laser shots
+    const HUNTER_LASER_SPEED = 6;
+    const HUNTER_LASER_DAMAGE = 15;
+    
+    // Create explosion when hunter bee is destroyed
+    function createHunterExplosion(x, y) {
+      hunterExplosions.push({
+        x: x,
+        y: y,
+        duration: 600,    // 600ms explosion
+        maxDuration: 600,
+        radius: 5         // Starting radius, will expand
+      });
+    }
+    
+    // Create smaller explosion when regular bee is destroyed
+    function createBeeExplosion(x, y) {
+      beeExplosions.push({
+        x: x,
+        y: y,
+        duration: 300,    // 300ms explosion (faster)
+        maxDuration: 300,
+        radius: 3         // Starting radius, will expand
+      });
+    }
+    
+    // Create explosion when cell is destroyed (honeycomb structure breaking apart)
+    function createCellExplosion(x, y) {
+      cellExplosions.push({
+        x: x,
+        y: y,
+        duration: 500,    // 500ms explosion
+        maxDuration: 500,
+        radius: 10        // Starting radius, will expand
+      });
+    }
     
     // user icon: placed randomly, slightly larger than bee, controlled by user
     const keys = {};
@@ -1527,6 +1739,16 @@
       
       // move user
       moveUserIcon(dt);
+      
+      // Check for idle - spawn dropship if user doesn't move
+      if (userIcon && userIcon.stationaryTime >= IDLE_THRESHOLD && !dropship && hunterBees.length === 0) {
+        spawnDropship();
+        userIcon.stationaryTime = 0; // Reset to prevent immediate re-spawn
+      }
+      
+      // Update dropship and hunter bees
+      updateDropship(dt);
+      updateHunterBees(dt);
 
       // Update trail ages and remove old points
       userTrail = userTrail.map(point => ({
@@ -1564,6 +1786,42 @@
         }
       }
 
+      // Update hunter explosions
+      for (let i = hunterExplosions.length - 1; i >= 0; i--) {
+        const exp = hunterExplosions[i];
+        exp.duration -= dt;
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        exp.radius = 5 + progress * 35; // Start at 5, expand to 40
+        
+        if (exp.duration <= 0) {
+          hunterExplosions.splice(i, 1);
+        }
+      }
+
+      // Update bee explosions
+      for (let i = beeExplosions.length - 1; i >= 0; i--) {
+        const exp = beeExplosions[i];
+        exp.duration -= dt;
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        exp.radius = 3 + progress * 15; // Start at 3, expand to 18
+        
+        if (exp.duration <= 0) {
+          beeExplosions.splice(i, 1);
+        }
+      }
+
+      // Update cell explosions
+      for (let i = cellExplosions.length - 1; i >= 0; i--) {
+        const exp = cellExplosions[i];
+        exp.duration -= dt;
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        exp.radius = 10 + progress * 40; // Start at 10, expand to 50
+        
+        if (exp.duration <= 0) {
+          cellExplosions.splice(i, 1);
+        }
+      }
+
       // Update weapon effects
       // Freeze bombs
       freezeBombs = freezeBombs.filter(bomb => {
@@ -1575,6 +1833,16 @@
           const dist = Math.hypot(bee.x - bomb.x, bee.y - bomb.y);
           if (dist < bomb.radius) {
             bee.frozen = Math.max(bee.frozen, bomb.duration);
+          }
+        });
+        
+        // Freeze hunter bees in radius too (they have shields but can still be slowed)
+        hunterBees.forEach(hunter => {
+          const dist = Math.hypot(hunter.x - bomb.x, hunter.y - bomb.y);
+          if (dist < bomb.radius) {
+            // Hunter bees slow down when frozen but still move (shields resist freeze)
+            if (!hunter.frozen) hunter.frozen = 0;
+            hunter.frozen = Math.max(hunter.frozen, bomb.duration * 0.5); // Half effectiveness
           }
         });
         
@@ -1593,8 +1861,28 @@
           if (dist < blast.radius) {
             bee.hp -= 0.5 * (dt / blast.maxDuration); // Small damage over time
             if (bee.hp <= 0) {
+              createBeeExplosion(bee.x, bee.y);
               bees.splice(i, 1);
               destroyedBees++;
+            }
+          }
+        }
+        
+        // Damage hunter bees in radius (damages shields first)
+        for (let i = hunterBees.length - 1; i >= 0; i--) {
+          const hunter = hunterBees[i];
+          const dist = Math.hypot(hunter.x - blast.x, hunter.y - blast.y);
+          if (dist < blast.radius) {
+            const damage = 0.3 * (dt / blast.maxDuration);
+            if (hunter.shield > 0) {
+              hunter.shield = Math.max(0, hunter.shield - damage * 10);
+            } else {
+              hunter.hp -= damage;
+              if (hunter.hp <= 0) {
+                createHunterExplosion(hunter.x, hunter.y);
+                hunterBees.splice(i, 1);
+                destroyedBees += 5;
+              }
             }
           }
         }
@@ -1632,8 +1920,25 @@
           }
         }
         
-        // User bullets check collision with hive cells (skip for hive bullets)
-        if (!bullet.isHiveBullet) {
+        // Check collision with user for hunter lasers
+        if (bullet.isHunterLaser && userIcon) {
+          const distToUser = Math.hypot(bullet.x - userIcon.x, bullet.y - userIcon.y);
+          if (distToUser < bullet.radius + userIcon.radius) {
+            // Hunter laser hit user - damage shield/health
+            const isInvincible = userIcon.invincibilityTimer > 0;
+            if (!isInvincible) {
+              if (userIcon.shield > 0) {
+                userIcon.shield = Math.max(0, userIcon.shield - bullet.damage);
+              } else {
+                userIcon.health = Math.max(0, userIcon.health - bullet.damage);
+              }
+            }
+            return false; // Remove bullet
+          }
+        }
+        
+        // User bullets check collision with hive cells (skip for hive bullets and hunter lasers)
+        if (!bullet.isHiveBullet && !bullet.isHunterLaser) {
           // Check if hive is still protected (first minute of game)
           const hiveProtected = (now - gameStartTime) < HIVE_PROTECTION_DURATION;
           
@@ -1653,6 +1958,7 @@
                 // Hit! Reduce bee HP
                 bee.hp -= 1;
                 if (bee.hp <= 0) {
+                  createBeeExplosion(bee.x, bee.y);
                   bees.splice(i, 1);
                   destroyedBees++;
                 }
@@ -1672,6 +1978,7 @@
                   // Cell destroyed - remove it
                   const cellIndex = cells.indexOf(hitCell);
                   if (cellIndex !== -1) {
+                    createCellExplosion(cellCenter.x, cellCenter.y);
                     cells.splice(cellIndex, 1);
                     destroyedCells++;
                   }
@@ -1691,8 +1998,29 @@
               // Hit! Reduce bee HP
               bee.hp -= 1;
               if (bee.hp <= 0) {
+                createBeeExplosion(bee.x, bee.y);
                 bees.splice(i, 1);
                 destroyedBees++;
+              }
+              return false; // Remove bullet
+            }
+          }
+          
+          // Check collision with hunter bees - only for user bullets
+          for (let i = hunterBees.length - 1; i >= 0; i--) {
+            const hunter = hunterBees[i];
+            const dist = Math.hypot(bullet.x - hunter.x, bullet.y - hunter.y);
+            if (dist < bullet.radius + hunter.size) {
+              // Hit hunter bee - damage shield first, then HP
+              if (hunter.shield > 0) {
+                hunter.shield = Math.max(0, hunter.shield - 15);
+              } else {
+                hunter.hp -= 1;
+                if (hunter.hp <= 0) {
+                  createHunterExplosion(hunter.x, hunter.y);
+                  hunterBees.splice(i, 1);
+                  destroyedBees += 5; // Worth more points!
+                }
               }
               return false; // Remove bullet
             }
@@ -2261,6 +2589,298 @@
         ctx.restore();
       });
 
+      // Draw dropship
+      if (dropship) {
+        ctx.save();
+        ctx.translate(dropship.x, dropship.y);
+        ctx.rotate(dropship.angle);
+        
+        // Dropship body (angular military look)
+        ctx.beginPath();
+        ctx.moveTo(30, 0);
+        ctx.lineTo(15, 15);
+        ctx.lineTo(-25, 12);
+        ctx.lineTo(-30, 0);
+        ctx.lineTo(-25, -12);
+        ctx.lineTo(15, -15);
+        ctx.closePath();
+        ctx.fillStyle = '#445566';
+        ctx.fill();
+        ctx.strokeStyle = '#667788';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Cockpit window
+        ctx.beginPath();
+        ctx.arc(18, 0, 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.8)';
+        ctx.fill();
+        
+        // Engine glow
+        ctx.beginPath();
+        ctx.arc(-28, 8, 4, 0, Math.PI * 2);
+        ctx.arc(-28, -8, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 150, 50, 0.8)';
+        ctx.fill();
+        
+        // Deploy animation
+        if (dropship.phase === 'deploying') {
+          const deployProgress = 1 - (dropship.deployTimer / 1500);
+          // Pulsing deploy ring
+          ctx.beginPath();
+          ctx.arc(-15, 0, 10 + deployProgress * 10, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 100, 100, ${0.8 * (1 - deployProgress)})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          // Deploy beam
+          ctx.beginPath();
+          ctx.moveTo(-15, 10);
+          ctx.lineTo(-15, 10 + deployProgress * 30);
+          ctx.moveTo(-15, -10);
+          ctx.lineTo(-15, -10 - deployProgress * 30);
+          ctx.strokeStyle = `rgba(255, 200, 100, ${0.6 * (1 - deployProgress)})`;
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+        
+        ctx.restore();
+      }
+      
+      // Draw hunter bees
+      hunterBees.forEach(hunter => {
+        ctx.save();
+        ctx.translate(hunter.x, hunter.y);
+        ctx.rotate(hunter.angle);
+        
+        // Shield ring (if active)
+        if (hunter.shield > 0) {
+          const shieldRatio = hunter.shield / hunter.maxShield;
+          ctx.beginPath();
+          ctx.arc(0, 0, hunter.size + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(100, 150, 255, ${shieldRatio * 0.6})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          
+          // Shield arc showing remaining shield
+          ctx.beginPath();
+          ctx.arc(0, 0, hunter.size + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldRatio);
+          ctx.strokeStyle = `rgba(100, 200, 255, ${shieldRatio * 0.9})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        
+        // Hunter bee body (larger, more menacing)
+        ctx.beginPath();
+        ctx.moveTo(hunter.size, 0);
+        ctx.lineTo(-hunter.size * 0.5, hunter.size * 0.7);
+        ctx.lineTo(-hunter.size * 0.2, 0);
+        ctx.lineTo(-hunter.size * 0.5, -hunter.size * 0.7);
+        ctx.closePath();
+        
+        // Color based on HP - gets redder as it takes damage
+        const hpRatio = hunter.hp / hunter.maxHp;
+        let r = 255;
+        let g = Math.floor(50 + hpRatio * 100);
+        let b = 50;
+        
+        // Frozen tint - blue when frozen
+        if (hunter.frozen > 0) {
+          r = 150;
+          g = 180;
+          b = 255;
+        }
+        
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fill();
+        ctx.strokeStyle = hunter.frozen > 0 ? 'rgba(100, 200, 255, 0.8)' : 'rgba(255, 200, 100, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Menacing red eyes
+        ctx.beginPath();
+        ctx.arc(hunter.size * 0.4, -hunter.size * 0.25, 2.5, 0, Math.PI * 2);
+        ctx.arc(hunter.size * 0.4, hunter.size * 0.25, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff3333';
+        ctx.fill();
+        
+        // Eye glow
+        ctx.beginPath();
+        ctx.arc(hunter.size * 0.4, -hunter.size * 0.25, 4, 0, Math.PI * 2);
+        ctx.arc(hunter.size * 0.4, hunter.size * 0.25, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
+        ctx.fill();
+        
+        // HP bar above hunter (unrotated)
+        ctx.rotate(-hunter.angle);
+        const barWidth = hunter.size * 2;
+        const barHeight = 4;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(-barWidth / 2, -hunter.size - 12, barWidth, barHeight);
+        ctx.fillStyle = hpRatio > 0.5 ? '#4caf50' : hpRatio > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(-barWidth / 2, -hunter.size - 12, barWidth * hpRatio, barHeight);
+        
+        // Shield bar below HP bar
+        if (hunter.shield > 0) {
+          const shieldRatio = hunter.shield / hunter.maxShield;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(-barWidth / 2, -hunter.size - 7, barWidth, 2);
+          ctx.fillStyle = '#64c8ff';
+          ctx.fillRect(-barWidth / 2, -hunter.size - 7, barWidth * shieldRatio, 2);
+        }
+        
+        ctx.restore();
+      });
+
+      // Draw hunter explosions
+      hunterExplosions.forEach(exp => {
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        const alpha = 1 - progress; // Fade out over time
+        const radius = exp.radius;
+        
+        ctx.save();
+        ctx.translate(exp.x, exp.y);
+        
+        // Outer explosion ring (orange/red)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        const outerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        outerGradient.addColorStop(0, `rgba(255, 100, 50, ${alpha * 0.9})`);
+        outerGradient.addColorStop(0.5, `rgba(255, 150, 0, ${alpha * 0.5})`);
+        outerGradient.addColorStop(1, `rgba(255, 200, 0, 0)`);
+        ctx.fillStyle = outerGradient;
+        ctx.fill();
+        
+        // Inner core (bright white/yellow)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+        const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.5);
+        innerGradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+        innerGradient.addColorStop(0.5, `rgba(255, 200, 100, ${alpha * 0.7})`);
+        innerGradient.addColorStop(1, `rgba(255, 150, 50, 0)`);
+        ctx.fillStyle = innerGradient;
+        ctx.fill();
+        
+        // Explosion particles (sparks)
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+          const angle = (Math.PI * 2 * i) / particleCount + progress * Math.PI;
+          const particleDist = radius * (0.3 + progress * 0.7);
+          const particleX = Math.cos(angle) * particleDist;
+          const particleY = Math.sin(angle) * particleDist;
+          const particleSize = 2 + (1 - progress) * 2;
+          
+          ctx.beginPath();
+          ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, ${200 - progress * 100}, ${50 + progress * 50}, ${alpha * 0.9})`;
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      });
+
+      // Draw bee explosions (smaller, quicker)
+      beeExplosions.forEach(exp => {
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        const alpha = 1 - progress;
+        const radius = exp.radius;
+        
+        ctx.save();
+        ctx.translate(exp.x, exp.y);
+        
+        // Small burst (yellow/orange)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        gradient.addColorStop(0, `rgba(255, 220, 100, ${alpha * 0.9})`);
+        gradient.addColorStop(0.5, `rgba(255, 180, 50, ${alpha * 0.6})`);
+        gradient.addColorStop(1, `rgba(255, 150, 0, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Small sparks
+        const sparkCount = 5;
+        for (let i = 0; i < sparkCount; i++) {
+          const angle = (Math.PI * 2 * i) / sparkCount + progress * Math.PI * 2;
+          const sparkDist = radius * (0.4 + progress * 0.6);
+          const sparkX = Math.cos(angle) * sparkDist;
+          const sparkY = Math.sin(angle) * sparkDist;
+          const sparkSize = 1 + (1 - progress) * 1.5;
+          
+          ctx.beginPath();
+          ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, ${220 - progress * 70}, ${100 - progress * 50}, ${alpha * 0.8})`;
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      });
+
+      // Draw cell explosions (honeycomb-themed)
+      cellExplosions.forEach(exp => {
+        const progress = 1 - (exp.duration / exp.maxDuration);
+        const alpha = 1 - progress;
+        const radius = exp.radius;
+        
+        ctx.save();
+        ctx.translate(exp.x, exp.y);
+        
+        // Outer burst (golden honey color)
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        const outerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        outerGradient.addColorStop(0, `rgba(255, 200, 50, ${alpha * 0.8})`);
+        outerGradient.addColorStop(0.4, `rgba(200, 150, 50, ${alpha * 0.5})`);
+        outerGradient.addColorStop(1, `rgba(150, 100, 30, 0)`);
+        ctx.fillStyle = outerGradient;
+        ctx.fill();
+        
+        // Inner bright core
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+        const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.4);
+        innerGradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+        innerGradient.addColorStop(0.5, `rgba(255, 220, 100, ${alpha * 0.7})`);
+        innerGradient.addColorStop(1, `rgba(255, 180, 50, 0)`);
+        ctx.fillStyle = innerGradient;
+        ctx.fill();
+        
+        // Hexagonal debris particles flying outward
+        const debrisCount = 6;
+        for (let i = 0; i < debrisCount; i++) {
+          const angle = (Math.PI * 2 * i) / debrisCount + progress * Math.PI * 0.5;
+          const debrisDist = radius * (0.3 + progress * 0.8);
+          const debrisX = Math.cos(angle) * debrisDist;
+          const debrisY = Math.sin(angle) * debrisDist;
+          const debrisSize = 4 + (1 - progress) * 4;
+          
+          // Draw small hexagon debris
+          ctx.beginPath();
+          for (let j = 0; j < 6; j++) {
+            const hexAngle = (Math.PI * 2 * j) / 6 + progress * Math.PI;
+            const hx = debrisX + Math.cos(hexAngle) * debrisSize;
+            const hy = debrisY + Math.sin(hexAngle) * debrisSize;
+            if (j === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.fillStyle = `rgba(200, 160, 50, ${alpha * 0.7})`;
+          ctx.fill();
+          ctx.strokeStyle = `rgba(150, 120, 30, ${alpha * 0.5})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        
+        // Ring shockwave
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.restore();
+      });
+
       // bullets
       bullets.forEach(bullet => {
         ctx.save();
@@ -2283,6 +2903,25 @@
           ctx.strokeStyle = 'rgba(255, 180, 50, 0.6)';
           ctx.lineWidth = 3;
           ctx.stroke();
+        } else if (bullet.isHunterLaser) {
+          // Hunter laser: bright red/pink beam
+          ctx.fillStyle = 'rgba(255, 50, 100, 0.95)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 150, 200, 0.9)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Laser trail effect - longer and brighter
+          ctx.beginPath();
+          ctx.moveTo(-bullet.radius * 4, 0);
+          ctx.lineTo(0, 0);
+          ctx.strokeStyle = 'rgba(255, 100, 150, 0.7)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          // Inner glow
+          ctx.beginPath();
+          ctx.arc(0, 0, bullet.radius * 0.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 200, 220, 0.9)';
+          ctx.fill();
         } else {
           // User bullets: smaller, red color
           ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
@@ -2869,6 +3508,13 @@
       // Clear bullets
       bullets = [];
       
+      // Clear hunter bees and dropship
+      hunterBees = [];
+      hunterExplosions = [];
+      beeExplosions = [];
+      cellExplosions = [];
+      dropship = null;
+      
       // Reset special weapons
       weapons.freeze.count = 3;
       weapons.electric.count = 3;
@@ -2900,6 +3546,11 @@
       bullets = [];
       freezeBombs = [];
       electricBlasts = [];
+      hunterBees = [];
+      hunterExplosions = [];
+      beeExplosions = [];
+      cellExplosions = [];
+      dropship = null;
       userTrail = [];
       lastTrailX = null;
       lastTrailY = null;
