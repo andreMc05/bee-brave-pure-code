@@ -1,4 +1,7 @@
-// Web Audio API setup for rocket engine sound
+// ========================================
+// Audio System - Web Audio API
+// ========================================
+
 let audioContext = null;
 let engineNodes = {
   noiseSource: null,
@@ -26,14 +29,14 @@ function initAudioContext() {
       
       // Create master gain node for volume control
       engineNodes.masterGain = audioContext.createGain();
-      engineNodes.masterGain.gain.value = 0.25; // Master volume
+      engineNodes.masterGain.gain.value = 0.25;
       engineNodes.masterGain.connect(audioContext.destination);
     } catch (e) {
       console.warn('Web Audio API not supported:', e);
     }
   }
   
-  // Resume audio context if suspended (required for some browsers)
+  // Resume audio context if suspended
   if (audioContext && audioContext.state === 'suspended') {
     audioContext.resume().catch(e => {
       console.warn('Could not resume audio context:', e);
@@ -49,75 +52,71 @@ function startEngineSound() {
     // Create filters for rocket engine sound
     engineNodes.lowPassFilter = audioContext.createBiquadFilter();
     engineNodes.lowPassFilter.type = 'lowpass';
-    engineNodes.lowPassFilter.frequency.value = 800; // Muffle high frequencies
+    engineNodes.lowPassFilter.frequency.value = 800;
     engineNodes.lowPassFilter.Q.value = 1;
     
     engineNodes.highPassFilter = audioContext.createBiquadFilter();
     engineNodes.highPassFilter.type = 'highpass';
-    engineNodes.highPassFilter.frequency.value = 40; // Remove very low rumble
+    engineNodes.highPassFilter.frequency.value = 40;
     engineNodes.highPassFilter.Q.value = 1;
     
-    // Connect filters in chain: highpass -> lowpass -> master gain
+    // Connect filters
     engineNodes.highPassFilter.connect(engineNodes.lowPassFilter);
     engineNodes.lowPassFilter.connect(engineNodes.masterGain);
     
-    // 1. WHITE NOISE - Turbulent exhaust sound (main rocket engine character)
+    // WHITE NOISE - Turbulent exhaust sound
     engineNodes.noiseSource = audioContext.createBufferSource();
     const bufferSize = audioContext.sampleRate * 2;
     const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      output[i] = Math.random() * 2 - 1; // White noise
+      output[i] = Math.random() * 2 - 1;
     }
     engineNodes.noiseSource.buffer = noiseBuffer;
     engineNodes.noiseSource.loop = true;
     
-    // Gain for noise
     engineNodes.noiseGain = audioContext.createGain();
-    engineNodes.noiseGain.gain.value = 0.4; // Noise volume
+    engineNodes.noiseGain.gain.value = 0.4;
     
     engineNodes.noiseSource.connect(engineNodes.noiseGain);
     engineNodes.noiseGain.connect(engineNodes.highPassFilter);
     
-    // 2. LOW FREQUENCY RUMBLE - Deep engine vibration
+    // LOW FREQUENCY RUMBLE
     engineNodes.rumbleOscillator = audioContext.createOscillator();
     engineNodes.rumbleOscillator.type = 'sawtooth';
-    engineNodes.rumbleOscillator.frequency.value = 45; // Deep rumble
+    engineNodes.rumbleOscillator.frequency.value = 45;
     
-    // Gain for rumble
     engineNodes.rumbleGain = audioContext.createGain();
-    engineNodes.rumbleGain.gain.value = 0.25; // Rumble volume
+    engineNodes.rumbleGain.gain.value = 0.25;
     
     engineNodes.rumbleOscillator.connect(engineNodes.rumbleGain);
     engineNodes.rumbleGain.connect(engineNodes.highPassFilter);
     
-    // 3. PULSE MODULATION - Creates pulsing/thrust variation effect
+    // PULSE MODULATION
     engineNodes.pulseOscillator = audioContext.createOscillator();
     engineNodes.pulseOscillator.type = 'sine';
-    engineNodes.pulseOscillator.frequency.value = 3.2; // Pulse rate (Hz)
+    engineNodes.pulseOscillator.frequency.value = 3.2;
     
-    // Modulate noise gain (volume pulsing)
-    // Create constant source for base value
+    // Modulate noise gain
     if (typeof audioContext.createConstantSource === 'function') {
       const noiseBase = audioContext.createConstantSource();
-      noiseBase.offset.value = 0.4; // Base noise gain
+      noiseBase.offset.value = 0.4;
       noiseBase.connect(engineNodes.noiseGain.gain);
       noiseBase.start();
       engineNodes.noisePulseOffset = noiseBase;
     } else {
-      // Fallback: set base value directly
       engineNodes.noiseGain.gain.value = 0.4;
     }
     
     const noisePulseGain = audioContext.createGain();
-    noisePulseGain.gain.value = 0.15; // Pulse intensity (±0.15)
+    noisePulseGain.gain.value = 0.15;
     engineNodes.pulseOscillator.connect(noisePulseGain);
     noisePulseGain.connect(engineNodes.noiseGain.gain);
     
-    // Modulate rumble frequency (frequency variation)
+    // Modulate rumble frequency
     if (typeof audioContext.createConstantSource === 'function') {
       const rumbleBase = audioContext.createConstantSource();
-      rumbleBase.offset.value = 45; // Base frequency
+      rumbleBase.offset.value = 45;
       rumbleBase.connect(engineNodes.rumbleOscillator.frequency);
       rumbleBase.start();
       engineNodes.rumbleFreqOffset = rumbleBase;
@@ -126,14 +125,14 @@ function startEngineSound() {
     }
     
     const rumbleFreqMod = audioContext.createGain();
-    rumbleFreqMod.gain.value = 8; // Frequency modulation amount (±8 Hz)
+    rumbleFreqMod.gain.value = 8;
     engineNodes.pulseOscillator.connect(rumbleFreqMod);
     rumbleFreqMod.connect(engineNodes.rumbleOscillator.frequency);
     
-    // Modulate low-pass filter frequency (dynamic filtering)
+    // Modulate low-pass filter frequency
     if (typeof audioContext.createConstantSource === 'function') {
       const filterBase = audioContext.createConstantSource();
-      filterBase.offset.value = 800; // Base filter frequency
+      filterBase.offset.value = 800;
       filterBase.connect(engineNodes.lowPassFilter.frequency);
       filterBase.start();
       engineNodes.filterOffset = filterBase;
@@ -142,7 +141,7 @@ function startEngineSound() {
     }
     
     const filterMod = audioContext.createGain();
-    filterMod.gain.value = 120; // Filter modulation amount (±120 Hz)
+    filterMod.gain.value = 120;
     engineNodes.pulseOscillator.connect(filterMod);
     filterMod.connect(engineNodes.lowPassFilter.frequency);
     
@@ -167,7 +166,6 @@ function stopEngineSound() {
   if (!isEngineRunning) return;
   
   try {
-    // Stop and disconnect all audio nodes
     if (engineNodes.noiseSource) {
       engineNodes.noiseSource.stop();
       engineNodes.noiseSource = null;
@@ -207,8 +205,6 @@ function stopEngineSound() {
       engineNodes.filterMod.disconnect();
       engineNodes.filterMod = null;
     }
-    
-    // Disconnect filters
     if (engineNodes.lowPassFilter) {
       engineNodes.lowPassFilter.disconnect();
       engineNodes.lowPassFilter = null;
@@ -217,8 +213,6 @@ function stopEngineSound() {
       engineNodes.highPassFilter.disconnect();
       engineNodes.highPassFilter = null;
     }
-    
-    // Disconnect gain nodes
     if (engineNodes.noiseGain) {
       engineNodes.noiseGain.disconnect();
       engineNodes.noiseGain = null;
@@ -238,47 +232,45 @@ function stopEngineSound() {
 function playFireSound() {
   if (!audioContext) {
     initAudioContext();
-    if (!audioContext) return; // Still can't initialize
+    if (!audioContext) return;
   }
   
   try {
-    // Resume audio context if suspended
     if (audioContext.state === 'suspended') {
       audioContext.resume();
     }
     
     const now = audioContext.currentTime;
-    const duration = 0.15; // Short burst sound (150ms)
+    const duration = 0.15;
     
-    // Create a sharp "pew" sound using multiple oscillators
     // Main tone: high frequency sweep down
     const mainOsc = audioContext.createOscillator();
     mainOsc.type = 'sawtooth';
-    mainOsc.frequency.setValueAtTime(800, now); // Start high
-    mainOsc.frequency.exponentialRampToValueAtTime(400, now + duration); // Sweep down
+    mainOsc.frequency.setValueAtTime(800, now);
+    mainOsc.frequency.exponentialRampToValueAtTime(400, now + duration);
     
-    // Secondary tone: adds character
+    // Secondary tone
     const subOsc = audioContext.createOscillator();
     subOsc.type = 'square';
     subOsc.frequency.setValueAtTime(600, now);
     subOsc.frequency.exponentialRampToValueAtTime(300, now + duration);
     
-    // Create gain envelope for sharp attack and quick decay
+    // Gain envelopes
     const mainGain = audioContext.createGain();
     mainGain.gain.setValueAtTime(0, now);
-    mainGain.gain.linearRampToValueAtTime(0.3, now + 0.01); // Quick attack
-    mainGain.gain.exponentialRampToValueAtTime(0.01, now + duration); // Quick decay
+    mainGain.gain.linearRampToValueAtTime(0.3, now + 0.01);
+    mainGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
     
     const subGain = audioContext.createGain();
     subGain.gain.setValueAtTime(0, now);
     subGain.gain.linearRampToValueAtTime(0.15, now + 0.01);
     subGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
     
-    // Add a bit of noise for "crack" effect
+    // Noise for crack effect
     const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
     const noiseData = noiseBuffer.getChannelData(0);
     for (let i = 0; i < noiseData.length; i++) {
-      noiseData[i] = (Math.random() * 2 - 1) * 0.3; // White noise
+      noiseData[i] = (Math.random() * 2 - 1) * 0.3;
     }
     const noiseSource = audioContext.createBufferSource();
     noiseSource.buffer = noiseBuffer;
@@ -288,12 +280,11 @@ function playFireSound() {
     noiseGain.gain.linearRampToValueAtTime(0.1, now + 0.005);
     noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
     
-    // Low-pass filter for noise to make it less harsh
     const noiseFilter = audioContext.createBiquadFilter();
     noiseFilter.type = 'lowpass';
     noiseFilter.frequency.value = 2000;
     
-    // Connect everything
+    // Connect
     mainOsc.connect(mainGain);
     subOsc.connect(subGain);
     noiseSource.connect(noiseFilter);
@@ -303,7 +294,7 @@ function playFireSound() {
     subGain.connect(audioContext.destination);
     noiseGain.connect(audioContext.destination);
     
-    // Start and stop sources
+    // Start and stop
     mainOsc.start(now);
     mainOsc.stop(now + duration);
     subOsc.start(now);
@@ -320,56 +311,53 @@ function playFireSound() {
 function playExplosionSound() {
   if (!audioContext) {
     initAudioContext();
-    if (!audioContext) return; // Still can't initialize
+    if (!audioContext) return;
   }
   
   try {
-    // Resume audio context if suspended
     if (audioContext.state === 'suspended') {
       audioContext.resume();
     }
     
     const now = audioContext.currentTime;
-    const duration = 1.2; // Longer explosion sound (1.2 seconds)
+    const duration = 1.2;
     
-    // 1. LOW RUMBLE - Deep explosion bass
+    // LOW RUMBLE
     const rumbleOsc = audioContext.createOscillator();
     rumbleOsc.type = 'sawtooth';
-    rumbleOsc.frequency.setValueAtTime(40, now); // Very low frequency
+    rumbleOsc.frequency.setValueAtTime(40, now);
     rumbleOsc.frequency.exponentialRampToValueAtTime(20, now + duration);
     
     const rumbleGain = audioContext.createGain();
     rumbleGain.gain.setValueAtTime(0, now);
-    rumbleGain.gain.linearRampToValueAtTime(0.4, now + 0.05); // Quick attack
+    rumbleGain.gain.linearRampToValueAtTime(0.4, now + 0.05);
     rumbleGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
     
-    // Low-pass filter for rumble
     const rumbleFilter = audioContext.createBiquadFilter();
     rumbleFilter.type = 'lowpass';
     rumbleFilter.frequency.value = 200;
     rumbleFilter.Q.value = 1;
     
-    // 2. EXPLOSION NOISE - White noise burst
+    // EXPLOSION NOISE
     const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
     const noiseData = noiseBuffer.getChannelData(0);
     for (let i = 0; i < noiseData.length; i++) {
-      noiseData[i] = (Math.random() * 2 - 1) * 0.8; // Strong white noise
+      noiseData[i] = (Math.random() * 2 - 1) * 0.8;
     }
     const noiseSource = audioContext.createBufferSource();
     noiseSource.buffer = noiseBuffer;
     
     const noiseGain = audioContext.createGain();
     noiseGain.gain.setValueAtTime(0, now);
-    noiseGain.gain.linearRampToValueAtTime(0.5, now + 0.02); // Very quick attack
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.6); // Decay faster
+    noiseGain.gain.linearRampToValueAtTime(0.5, now + 0.02);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.6);
     
-    // Band-pass filter for noise to make it sound more explosive
     const noiseFilter = audioContext.createBiquadFilter();
     noiseFilter.type = 'bandpass';
     noiseFilter.frequency.value = 800;
     noiseFilter.Q.value = 2;
     
-    // 3. HIGH FREQUENCY CRACK - Sharp initial burst
+    // HIGH FREQUENCY CRACK
     const crackOsc = audioContext.createOscillator();
     crackOsc.type = 'square';
     crackOsc.frequency.setValueAtTime(2000, now);
@@ -377,10 +365,10 @@ function playExplosionSound() {
     
     const crackGain = audioContext.createGain();
     crackGain.gain.setValueAtTime(0, now);
-    crackGain.gain.linearRampToValueAtTime(0.3, now + 0.005); // Instant attack
-    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15); // Quick decay
+    crackGain.gain.linearRampToValueAtTime(0.3, now + 0.005);
+    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
     
-    // 4. REVERB/ECHO EFFECT - Create multiple delayed copies for depth
+    // DELAY EFFECTS
     const delay1 = audioContext.createDelay(0.5);
     delay1.delayTime.value = 0.1;
     const delayGain1 = audioContext.createGain();
@@ -391,21 +379,18 @@ function playExplosionSound() {
     const delayGain2 = audioContext.createGain();
     delayGain2.gain.value = 0.15;
     
-    // Connect rumble
+    // Connect
     rumbleOsc.connect(rumbleFilter);
     rumbleFilter.connect(rumbleGain);
     rumbleGain.connect(audioContext.destination);
     
-    // Connect noise
     noiseSource.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(audioContext.destination);
     
-    // Connect crack
     crackOsc.connect(crackGain);
     crackGain.connect(audioContext.destination);
     
-    // Add delay effects to noise for depth
     noiseGain.connect(delay1);
     delay1.connect(delayGain1);
     delayGain1.connect(audioContext.destination);
@@ -426,4 +411,3 @@ function playExplosionSound() {
     console.warn('Error playing explosion sound:', e);
   }
 }
-

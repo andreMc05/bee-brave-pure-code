@@ -32,10 +32,10 @@
 ## 🎨 Visual Improvements
 
 - [ ] Add particle effects for explosions
-- [ ] Improve bee animations
-- [ ] Add background parallax layers
+- [x] Improve bee animations
+- [x] Add background parallax layers
 - [ ] Create day/night cycle
-- [ ] Add screen shake on impact
+- [x] Add screen shake on impact
 
 ## 🔊 Audio
 
@@ -79,3 +79,4 @@
 - [x] Start screen with settings
 - [x] Game over screen
 - [x] Score tracking
+- [x] Background parallax layers (3-layer depth system with stars, nebula clouds, floating particles)
