@@ -2,6 +2,10 @@
 // UI Updates and Event Handlers
 // ========================================
 
+import { cells, hiveHoney } from './cells.js';
+import { bees, destroyedBees, destroyedCells } from './bees.js';
+import { userIcon } from './user.js';
+
 // UI element references
 let colonySizeInput, colonySizeVal;
 let maxColonySizeInput, maxColonySizeVal;
@@ -21,8 +25,26 @@ let scoreDisplay, colonyDisplay;
 let shieldBar, shieldValue, healthBar, healthValue;
 let gameOverEl, startScreen, startBtn, restartBtn, settingsBtn;
 
+// Game functions to be set from game.js
+let createBeesFn = null;
+let makeResourceSpotsFn = null;
+let startGameFn = null;
+let restartGameFn = null;
+let returnToSettingsFn = null;
+let gameStartedRef = { value: false };
+
+// Set game functions
+export function setGameFunctions(createBees, makeResourceSpots, startGame, restartGame, returnToSettings, gameStarted) {
+  createBeesFn = createBees;
+  makeResourceSpotsFn = makeResourceSpots;
+  startGameFn = startGame;
+  restartGameFn = restartGame;
+  returnToSettingsFn = returnToSettings;
+  gameStartedRef = gameStarted;
+}
+
 // Initialize UI element references
-function initUI() {
+export function initUI() {
   // Game control elements
   colonySizeInput = document.getElementById('colonySize');
   colonySizeVal = document.getElementById('colonySizeVal');
@@ -98,8 +120,8 @@ function setupSliderHandlers() {
       startColonySizeVal.textContent = startColonySizeInput.value;
       colonySizeInput.value = startColonySizeInput.value;
       colonySizeVal.textContent = startColonySizeInput.value;
-      if (gameStarted) {
-        createBees(+startColonySizeInput.value);
+      if (gameStartedRef.value && createBeesFn) {
+        createBeesFn(+startColonySizeInput.value);
       }
     };
   }
@@ -117,8 +139,8 @@ function setupSliderHandlers() {
       startResourceCountVal.textContent = startResourceCountInput.value;
       resourceCountInput.value = startResourceCountInput.value;
       resourceCountVal.textContent = startResourceCountInput.value;
-      if (gameStarted) {
-        makeResourceSpots(+startResourceCountInput.value, +startResourceAmountInput.value);
+      if (gameStartedRef.value && makeResourceSpotsFn) {
+        makeResourceSpotsFn(+startResourceCountInput.value, +startResourceAmountInput.value);
         bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
       }
     };
@@ -129,8 +151,8 @@ function setupSliderHandlers() {
       startResourceAmountVal.textContent = startResourceAmountInput.value;
       resourceAmountInput.value = startResourceAmountInput.value;
       resourceAmountVal.textContent = startResourceAmountInput.value;
-      if (gameStarted) {
-        makeResourceSpots(+startResourceCountInput.value, +startResourceAmountInput.value);
+      if (gameStartedRef.value && makeResourceSpotsFn) {
+        makeResourceSpotsFn(+startResourceCountInput.value, +startResourceAmountInput.value);
         bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
       }
     };
@@ -158,7 +180,7 @@ function setupSliderHandlers() {
       colonySizeVal.textContent = colonySizeInput.value;
       startColonySizeInput.value = colonySizeInput.value;
       startColonySizeVal.textContent = colonySizeInput.value;
-      createBees(+colonySizeInput.value);
+      if (createBeesFn) createBeesFn(+colonySizeInput.value);
     };
   }
   
@@ -175,8 +197,10 @@ function setupSliderHandlers() {
       resourceCountVal.textContent = resourceCountInput.value;
       startResourceCountInput.value = resourceCountInput.value;
       startResourceCountVal.textContent = resourceCountInput.value;
-      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
-      bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      if (makeResourceSpotsFn) {
+        makeResourceSpotsFn(+resourceCountInput.value, +resourceAmountInput.value);
+        bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      }
     };
   }
   
@@ -185,8 +209,10 @@ function setupSliderHandlers() {
       resourceAmountVal.textContent = resourceAmountInput.value;
       startResourceAmountInput.value = resourceAmountInput.value;
       startResourceAmountVal.textContent = resourceAmountInput.value;
-      makeResourceSpots(+resourceCountInput.value, +resourceAmountInput.value);
-      bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      if (makeResourceSpotsFn) {
+        makeResourceSpotsFn(+resourceCountInput.value, +resourceAmountInput.value);
+        bees.forEach(b => { b.state = 'forage'; b.resourceSpot = null; b.target = null; });
+      }
     };
   }
   
@@ -211,22 +237,28 @@ function setupSliderHandlers() {
 function setupButtonHandlers() {
   // Start button
   if (startBtn) {
-    startBtn.addEventListener('click', startGame);
+    startBtn.addEventListener('click', () => {
+      if (startGameFn) startGameFn();
+    });
   }
   
   // Restart button
   if (restartBtn) {
-    restartBtn.addEventListener('click', restartGame);
+    restartBtn.addEventListener('click', () => {
+      if (restartGameFn) restartGameFn();
+    });
   }
   
   // Settings button
   if (settingsBtn) {
-    settingsBtn.addEventListener('click', returnToSettings);
+    settingsBtn.addEventListener('click', () => {
+      if (returnToSettingsFn) returnToSettingsFn();
+    });
   }
 }
 
 // Update game UI displays
-function updateGameUI() {
+export function updateGameUI(score) {
   const cellsEl = document.getElementById('cells');
   const honeyEl = document.getElementById('honey');
   

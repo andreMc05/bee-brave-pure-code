@@ -2,24 +2,36 @@
 // Combat System - Bullets and Special Weapons
 // ========================================
 
+import { w, h, HEX_SIZE, HONEY_DAMAGE_PER_HIT, triggerScreenShake } from './config.js';
+import { playFireSound } from './audio.js';
+import { 
+  bees, 
+  hunterBees, 
+  createBeeExplosion, 
+  createHunterExplosion, 
+  addDestroyedBees,
+  addDestroyedCells
+} from './bees.js';
+import { cells, getCellAtPoint, hexToPixel, isPointInHex, createCellExplosion } from './cells.js';
+
 // Bullets array
-let bullets = [];
+export let bullets = [];
 
 // Special weapons system
-let weapons = {
+export const weapons = {
   freeze: { count: 3, name: 'Freeze Bomb' },
   electric: { count: 3, name: 'Electric Blast' },
   warp: { count: 2, name: 'Warp' }
 };
-let currentWeaponIndex = 0;
-const weaponTypes = ['freeze', 'electric', 'warp'];
+export let currentWeaponIndex = 0;
+export const weaponTypes = ['freeze', 'electric', 'warp'];
 
 // Active weapon effects
-let freezeBombs = [];
-let electricBlasts = [];
+export let freezeBombs = [];
+export let electricBlasts = [];
 
 // Shoot function
-function shoot() {
+export function shoot(userIcon, gameStarted) {
   if (!userIcon || !gameStarted) return;
   const shotDist = +document.getElementById('shotDistance').value;
   const angle = userIcon.angle;
@@ -41,7 +53,7 @@ function shoot() {
 }
 
 // Use special weapon
-function useSpecialWeapon() {
+export function useSpecialWeapon(userIcon, gameOver, gameStarted) {
   if (!userIcon || gameOver || !gameStarted) return;
   
   const currentWeapon = weaponTypes[currentWeaponIndex];
@@ -86,13 +98,13 @@ function useSpecialWeapon() {
 }
 
 // Cycle weapon
-function cycleWeapon() {
+export function cycleWeapon() {
   currentWeaponIndex = (currentWeaponIndex + 1) % weaponTypes.length;
   updateWeaponUI();
 }
 
 // Update weapon UI
-function updateWeaponUI() {
+export function updateWeaponUI() {
   const freezeCountEl = document.getElementById('freezeCount');
   const electricCountEl = document.getElementById('electricCount');
   const warpCountEl = document.getElementById('warpCount');
@@ -119,7 +131,7 @@ function updateWeaponUI() {
 }
 
 // Update bullets
-function updateBullets(dt, now) {
+export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_DURATION) {
   bullets = bullets.filter(bullet => {
     bullet.x += bullet.vx * (dt * 0.06);
     bullet.y += bullet.vy * (dt * 0.06);
@@ -187,7 +199,7 @@ function updateBullets(dt, now) {
             if (bee.hp <= 0) {
               createBeeExplosion(bee.x, bee.y);
               bees.splice(i, 1);
-              destroyedBees++;
+              addDestroyedBees(1);
             }
           }
         }
@@ -203,7 +215,7 @@ function updateBullets(dt, now) {
               if (cellIndex !== -1) {
                 createCellExplosion(cellCenter.x, cellCenter.y);
                 cells.splice(cellIndex, 1);
-                destroyedCells++;
+                addDestroyedCells(1);
               }
             }
           }
@@ -221,7 +233,7 @@ function updateBullets(dt, now) {
           if (bee.hp <= 0) {
             createBeeExplosion(bee.x, bee.y);
             bees.splice(i, 1);
-            destroyedBees++;
+            addDestroyedBees(1);
           }
           return false;
         }
@@ -239,7 +251,7 @@ function updateBullets(dt, now) {
             if (hunter.hp <= 0) {
               createHunterExplosion(hunter.x, hunter.y);
               hunterBees.splice(i, 1);
-              destroyedBees += 5;
+              addDestroyedBees(5);
             }
           }
           return false;
@@ -252,7 +264,7 @@ function updateBullets(dt, now) {
 }
 
 // Update weapon effects
-function updateWeaponEffects(dt) {
+export function updateWeaponEffects(dt) {
   // Freeze bombs
   freezeBombs = freezeBombs.filter(bomb => {
     bomb.duration -= dt;
@@ -289,7 +301,7 @@ function updateWeaponEffects(dt) {
         if (bee.hp <= 0) {
           createBeeExplosion(bee.x, bee.y);
           bees.splice(i, 1);
-          destroyedBees++;
+          addDestroyedBees(1);
         }
       }
     }
@@ -306,7 +318,7 @@ function updateWeaponEffects(dt) {
           if (hunter.hp <= 0) {
             createHunterExplosion(hunter.x, hunter.y);
             hunterBees.splice(i, 1);
-            destroyedBees += 5;
+            addDestroyedBees(5);
           }
         }
       }
@@ -317,7 +329,7 @@ function updateWeaponEffects(dt) {
 }
 
 // Reset combat state
-function resetCombat() {
+export function resetCombat() {
   bullets = [];
   freezeBombs = [];
   electricBlasts = [];
@@ -326,3 +338,6 @@ function resetCombat() {
   weapons.warp.count = 2;
   currentWeaponIndex = 0;
 }
+
+// Setter for bullets
+export function setBullets(newBullets) { bullets = newBullets; }

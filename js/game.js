@@ -2,6 +2,50 @@
 // Game State and Main Loop
 // ========================================
 
+import { 
+  initCanvas, 
+  updateScreenShake, 
+  IDLE_THRESHOLD, 
+  HIVE_PROTECTION_DURATION 
+} from './config.js';
+import { initAudioContext, stopEngineSound, isEngineRunning } from './audio.js';
+import { makeResourceSpots, resetResourceSpots } from './resources.js';
+import { cells, updateCells, resetCells, cellExplosions } from './cells.js';
+import { 
+  bees, 
+  hunterBees, 
+  createBees, 
+  updateBees, 
+  updateDropship, 
+  updateHunterBees, 
+  updateExplosions, 
+  resetBees,
+  spawnDropship,
+  destroyedBees,
+  destroyedCells,
+  setDestroyedBees,
+  setDestroyedCells,
+  setDropship
+} from './bees.js';
+import { 
+  bullets, 
+  updateBullets, 
+  updateWeaponEffects, 
+  resetCombat, 
+  updateWeaponUI 
+} from './combat.js';
+import { 
+  userIcon, 
+  updateUser, 
+  checkUserDeath, 
+  resetUser, 
+  placeUserIcon,
+  initInput,
+  setGameStateRefs
+} from './user.js';
+import { draw } from './draw.js';
+import { initUI, updateGameUI, setGameFunctions } from './ui.js';
+
 // Game state
 let gameOver = false;
 let gameStarted = false;
@@ -9,8 +53,10 @@ let gameStartTime = 0;
 
 // Score tracking
 let score = 0;
-let destroyedBees = 0;
-let destroyedCells = 0;
+
+// Refs for cross-module state
+const gameStartedRef = { value: false };
+const gameOverRef = { value: false };
 
 // Main update function
 function update(now, dt) {
@@ -25,17 +71,17 @@ function update(now, dt) {
   updateUser(dt, now);
   
   // Check for idle - spawn dropship
-  if (userIcon && userIcon.stationaryTime >= IDLE_THRESHOLD && !dropship && hunterBees.length === 0) {
-    spawnDropship();
+  if (userIcon && userIcon.stationaryTime >= IDLE_THRESHOLD && hunterBees.length === 0) {
+    spawnDropship(userIcon);
     userIcon.stationaryTime = 0;
   }
   
   // Update dropship and hunter bees
   updateDropship(dt);
-  updateHunterBees(dt);
+  updateHunterBees(dt, userIcon, bullets);
   
   // Update explosions
-  updateExplosions(dt);
+  updateExplosions(dt, cellExplosions);
   
   // Update weapon effects
   updateWeaponEffects(dt);
@@ -44,20 +90,20 @@ function update(now, dt) {
   updateScreenShake(dt);
   
   // Update bullets
-  updateBullets(dt, now);
+  updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_DURATION);
   
   // Update cells
-  updateCells(dt, now);
+  updateCells(dt, now, userIcon, bullets, gameStartTime, HIVE_PROTECTION_DURATION);
   
   // Update bees
   const preferHighPct = +document.getElementById('priorityPercent').value;
-  updateBees(dt, now, preferHighPct);
+  updateBees(dt, now, preferHighPct, userIcon);
   
   // Update score
   score = destroyedBees * 5 + destroyedCells * 10;
   
   // Update UI
-  updateGameUI();
+  updateGameUI(score);
   
   // Check for game over
   checkUserDeath();
@@ -69,7 +115,7 @@ function loop(now) {
   const dt = now - last;
   last = now;
   update(now, dt);
-  draw();
+  draw(gameOver, gameStarted, gameStartTime);
   requestAnimationFrame(loop);
 }
 
@@ -99,26 +145,28 @@ function startGame() {
 
   // Reset score
   score = 0;
-  destroyedBees = 0;
-  destroyedCells = 0;
+  setDestroyedBees(0);
+  setDestroyedCells(0);
 
   // Hide start screen
   document.getElementById('startScreen').classList.add('hidden');
   gameStarted = true;
+  gameStartedRef.value = true;
   gameStartTime = performance.now();
 }
 
 // Restart game
 function restartGame() {
   gameOver = false;
+  gameOverRef.value = false;
   document.getElementById('gameOver').classList.remove('show');
   
   stopEngineSound();
   
   // Reset score
   score = 0;
-  destroyedBees = 0;
-  destroyedCells = 0;
+  setDestroyedBees(0);
+  setDestroyedCells(0);
   
   // Reset game start time
   gameStartTime = performance.now();
@@ -127,7 +175,6 @@ function restartGame() {
   resetUser();
   
   // Reset bees
-  createBees(+document.getElementById('colonySize').value);
   resetBees();
   createBees(+document.getElementById('colonySize').value);
   
@@ -145,7 +192,9 @@ function restartGame() {
 // Return to settings
 function returnToSettings() {
   gameOver = false;
+  gameOverRef.value = false;
   gameStarted = false;
+  gameStartedRef.value = false;
   document.getElementById('gameOver').classList.remove('show');
   document.getElementById('startScreen').classList.remove('hidden');
   
@@ -156,18 +205,27 @@ function returnToSettings() {
   resetBees();
   resetUser();
   cells.length = 0;
-  resourceSpots = [];
+  resetResourceSpots();
   
   // Reset score
   score = 0;
-  destroyedBees = 0;
-  destroyedCells = 0;
+  setDestroyedBees(0);
+  setDestroyedCells(0);
 }
 
 // Initialize game
 function initGame() {
+  // Create a ref object for userIcon (used for resize)
+  const userIconRef = { get current() { return userIcon; } };
+  
   // Initialize canvas
-  initCanvas();
+  initCanvas(userIconRef);
+  
+  // Set game state refs for user module
+  setGameStateRefs(gameStartedRef, gameOverRef, restartGame);
+  
+  // Set game functions for UI module
+  setGameFunctions(createBees, makeResourceSpots, startGame, restartGame, returnToSettings, gameStartedRef);
   
   // Initialize UI
   initUI();

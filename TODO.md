@@ -63,7 +63,7 @@
 - [ ] Add code comments/documentation
 - [ ] Refactor into ES6 modules
 - [ ] Add unit tests
-- [ ] Optimize canvas rendering
+- [x] Optimize canvas rendering
 
 ---
 
@@ -80,3 +80,11 @@
 - [x] Game over screen
 - [x] Score tracking
 - [x] Background parallax layers (3-layer depth system with stars, nebula clouds, floating particles)
+- [x] Canvas rendering optimizations:
+  - Off-screen canvas caching for parallax background
+  - Pre-computed hex angles (avoid trig every frame)
+  - Visibility culling for all game objects
+  - Reduced ctx.save()/restore() calls
+  - Batched draw operations by color/style
+  - Simplified gradients and effects
+  - Cached background glow gradient

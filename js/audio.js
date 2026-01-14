@@ -3,7 +3,7 @@
 // ========================================
 
 let audioContext = null;
-let engineNodes = {
+const engineNodes = {
   noiseSource: null,
   rumbleOscillator: null,
   pulseOscillator: null,
@@ -19,10 +19,10 @@ let engineNodes = {
   rumbleFreqOffset: null,
   filterOffset: null
 };
-let isEngineRunning = false;
+export let isEngineRunning = false;
 
 // Initialize audio context (must be triggered by user interaction)
-function initAudioContext() {
+export function initAudioContext() {
   if (!audioContext) {
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -45,7 +45,7 @@ function initAudioContext() {
 }
 
 // Start rocket engine sound
-function startEngineSound() {
+export function startEngineSound() {
   if (!audioContext || isEngineRunning) return;
   
   try {
@@ -162,7 +162,7 @@ function startEngineSound() {
 }
 
 // Stop rocket engine sound
-function stopEngineSound() {
+export function stopEngineSound() {
   if (!isEngineRunning) return;
   
   try {
@@ -229,7 +229,7 @@ function stopEngineSound() {
 }
 
 // Play firing sound effect
-function playFireSound() {
+export function playFireSound() {
   if (!audioContext) {
     initAudioContext();
     if (!audioContext) return;
@@ -308,7 +308,7 @@ function playFireSound() {
 }
 
 // Play explosion sound effect
-function playExplosionSound() {
+export function playExplosionSound() {
   if (!audioContext) {
     initAudioContext();
     if (!audioContext) return;

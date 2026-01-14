@@ -3,15 +3,105 @@
 // ========================================
 
 // Canvas and display
-let canvas, ctx;
-let w, h, center;
+export let canvas = null;
+export let ctx = null;
+export let w = 0;
+export let h = 0;
+export let center = { x: 0, y: 0 };
+
+// ========================================
+// Rendering Cache System (Performance)
+// ========================================
+
+// Pre-computed hex angles (avoid trig every frame)
+export const HEX_ANGLES = [];
+for (let i = 0; i < 6; i++) {
+  const a = Math.PI / 3 * i + Math.PI / 6;
+  HEX_ANGLES.push({ cos: Math.cos(a), sin: Math.sin(a) });
+}
+
+// Cached gradients and patterns
+export const renderCache = {
+  initialized: false,
+  backgroundGlow: null,
+  // Off-screen canvas for parallax (updated only when needed)
+  parallaxCanvas: null,
+  parallaxCtx: null,
+  parallaxDirty: true,
+  lastParallaxOffset: { x: 0, y: 0 },
+  // Cached common gradients
+  honeyGradient: null,
+  // Path2D cache for hexagons
+  hexPath: null,
+  // Visibility bounds (for culling)
+  viewBounds: { left: 0, right: 0, top: 0, bottom: 0, padding: 100 }
+};
+
+// Initialize render cache
+export function initRenderCache() {
+  if (renderCache.initialized && renderCache.parallaxCanvas) return;
+  
+  // Create off-screen canvas for parallax background
+  renderCache.parallaxCanvas = document.createElement('canvas');
+  renderCache.parallaxCanvas.width = w || 1920;
+  renderCache.parallaxCanvas.height = h || 1080;
+  renderCache.parallaxCtx = renderCache.parallaxCanvas.getContext('2d');
+  
+  // Create reusable hex Path2D
+  renderCache.hexPath = new Path2D();
+  for (let i = 0; i < 6; i++) {
+    const px = HEX_ANGLES[i].cos;
+    const py = HEX_ANGLES[i].sin;
+    i === 0 ? renderCache.hexPath.moveTo(px, py) : renderCache.hexPath.lineTo(px, py);
+  }
+  renderCache.hexPath.closePath();
+  
+  // Update view bounds
+  updateViewBounds();
+  
+  renderCache.initialized = true;
+  renderCache.parallaxDirty = true;
+}
+
+// Update view bounds for culling
+export function updateViewBounds() {
+  const pad = renderCache.viewBounds.padding;
+  renderCache.viewBounds.left = -pad;
+  renderCache.viewBounds.right = w + pad;
+  renderCache.viewBounds.top = -pad;
+  renderCache.viewBounds.bottom = h + pad;
+}
+
+// Check if point is visible (for culling)
+export function isVisible(x, y, radius = 0) {
+  const bounds = renderCache.viewBounds;
+  return x + radius >= bounds.left && 
+         x - radius <= bounds.right && 
+         y + radius >= bounds.top && 
+         y - radius <= bounds.bottom;
+}
+
+// Mark parallax as needing redraw
+export function markParallaxDirty() {
+  renderCache.parallaxDirty = true;
+}
+
+// Create cached background glow gradient
+export function createBackgroundGlow() {
+  if (!ctx) return null;
+  const grd = ctx.createRadialGradient(center.x, center.y, 20, center.x, center.y, w * 0.6);
+  grd.addColorStop(0, 'rgba(255,255,255,0.03)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  renderCache.backgroundGlow = grd;
+  return grd;
+}
 
 // ========================================
 // Parallax Background Configuration
 // ========================================
 
 // Parallax layers configuration
-const PARALLAX_CONFIG = {
+export const PARALLAX_CONFIG = {
   // Far layer - distant stars
   farLayer: {
     count: 80,
@@ -53,7 +143,7 @@ const PARALLAX_CONFIG = {
 };
 
 // Parallax state
-let parallaxLayers = {
+export const parallaxLayers = {
   far: [],
   mid: [],
   near: [],
@@ -61,7 +151,7 @@ let parallaxLayers = {
 };
 
 // Initialize parallax layers
-function initParallaxLayers() {
+export function initParallaxLayers() {
   if (parallaxLayers.initialized) return;
   
   // Far layer - stars
@@ -110,7 +200,7 @@ function initParallaxLayers() {
 }
 
 // Reset parallax layers (on resize)
-function resetParallaxLayers() {
+export function resetParallaxLayers() {
   parallaxLayers.far = [];
   parallaxLayers.mid = [];
   parallaxLayers.near = [];
@@ -119,41 +209,41 @@ function resetParallaxLayers() {
 }
 
 // Hex grid constants
-const HEX_SIZE = 26;
-const CELL_MAX_HP = 5;
-const HONEY_DAMAGE_PER_HIT = 2;
-const HIVE_FIRE_COOLDOWN = 2000;
-const HIVE_FIRE_RANGE = 500;
-const HIVE_PROTECTION_DURATION = 10000;
+export const HEX_SIZE = 26;
+export const CELL_MAX_HP = 5;
+export const HONEY_DAMAGE_PER_HIT = 2;
+export const HIVE_FIRE_COOLDOWN = 2000;
+export const HIVE_FIRE_RANGE = 500;
+export const HIVE_PROTECTION_DURATION = 10000;
 
 // Honey constants
-const honeyPerCell = 12;
-const honeyToBuild = 15;
+export const honeyPerCell = 12;
+export const honeyToBuild = 15;
 
 // Bee constants
-const BEE_MAX_HP = 3;
-const BEE_ATTACK_RANGE = 200;
-const BEE_HUNT_SPEED_MULTIPLIER = 1.8;
-const BEE_FLANK_ANGLE = Math.PI / 4;
-const BEE_ADDITION_COOLDOWN = 1000;
+export const BEE_MAX_HP = 3;
+export const BEE_ATTACK_RANGE = 200;
+export const BEE_HUNT_SPEED_MULTIPLIER = 1.8;
+export const BEE_FLANK_ANGLE = Math.PI / 4;
+export const BEE_ADDITION_COOLDOWN = 1000;
 
 // Hunter bee constants
-const HUNTER_BEE_HP = 8;
-const HUNTER_BEE_SHIELD = 25;
-const HUNTER_BEE_SPEED = 2.5;
-const HUNTER_BEE_SIZE = 12;
-const HUNTER_FIRE_COOLDOWN = 1500;
-const HUNTER_LASER_SPEED = 6;
-const HUNTER_LASER_DAMAGE = 15;
-const HUNTER_SPAWN_DISTANCE = 250;
-const IDLE_THRESHOLD = 5000;
+export const HUNTER_BEE_HP = 8;
+export const HUNTER_BEE_SHIELD = 25;
+export const HUNTER_BEE_SPEED = 2.5;
+export const HUNTER_BEE_SIZE = 12;
+export const HUNTER_FIRE_COOLDOWN = 1500;
+export const HUNTER_LASER_SPEED = 6;
+export const HUNTER_LASER_DAMAGE = 15;
+export const HUNTER_SPAWN_DISTANCE = 250;
+export const IDLE_THRESHOLD = 5000;
 
 // Trail constants
-const TRAIL_MAX_AGE = 800;
-const TRAIL_SPACING = 3;
+export const TRAIL_MAX_AGE = 800;
+export const TRAIL_SPACING = 3;
 
 // Screen shake state
-let screenShake = {
+export const screenShake = {
   intensity: 0,
   duration: 0,
   maxDuration: 0,
@@ -162,7 +252,7 @@ let screenShake = {
 };
 
 // Trigger screen shake effect
-function triggerScreenShake(intensity, duration) {
+export function triggerScreenShake(intensity, duration) {
   // Only override if new shake is stronger or current one is nearly done
   if (intensity > screenShake.intensity || screenShake.duration < 50) {
     screenShake.intensity = intensity;
@@ -172,7 +262,7 @@ function triggerScreenShake(intensity, duration) {
 }
 
 // Update screen shake state
-function updateScreenShake(dt) {
+export function updateScreenShake(dt) {
   if (screenShake.duration > 0) {
     screenShake.duration = Math.max(0, screenShake.duration - dt);
     
@@ -191,7 +281,7 @@ function updateScreenShake(dt) {
 }
 
 // Hex directions for neighbor calculation
-const directions = [
+export const directions = [
   { q: 1, r: 0 },
   { q: 1, r: -1 },
   { q: 0, r: -1 },
@@ -201,21 +291,38 @@ const directions = [
 ];
 
 // Initialize canvas and dimensions
-function initCanvas() {
+export function initCanvas(userIconRef) {
   canvas = document.getElementById('c');
-  ctx = canvas.getContext('2d');
-  resize();
-  window.addEventListener('resize', resize);
+  ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for performance
+  resize(userIconRef);
+  window.addEventListener('resize', () => resize(userIconRef));
 }
 
-function resize() {
+export function resize(userIconRef) {
   w = canvas.width = window.innerWidth;
   h = canvas.height = window.innerHeight;
   center = { x: w * 0.53, y: h * 0.55 };
-  if (typeof userIcon !== 'undefined' && userIcon) {
-    userIcon.x = Math.min(Math.max(userIcon.x, 0), w);
-    userIcon.y = Math.min(Math.max(userIcon.y, 0), h);
+  if (userIconRef && userIconRef.current) {
+    userIconRef.current.x = Math.min(Math.max(userIconRef.current.x, 0), w);
+    userIconRef.current.y = Math.min(Math.max(userIconRef.current.y, 0), h);
   }
   // Reset parallax layers on resize
   resetParallaxLayers();
+  
+  // Reset render cache on resize
+  renderCache.initialized = false;
+  renderCache.backgroundGlow = null;
+  if (renderCache.parallaxCanvas) {
+    renderCache.parallaxCanvas.width = w;
+    renderCache.parallaxCanvas.height = h;
+  }
+  initRenderCache();
+  createBackgroundGlow();
 }
+
+// Setters for module-level variables
+export function setCanvas(c) { canvas = c; }
+export function setCtx(c) { ctx = c; }
+export function setW(val) { w = val; }
+export function setH(val) { h = val; }
+export function setCenter(val) { center = val; }

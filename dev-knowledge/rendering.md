@@ -200,10 +200,74 @@ parallaxLayers = {
 - **Always visible**: Draws even on start/game over screens for ambiance
 - **Animated effects**: Stars twinkle, clouds drift, particles bob
 
-## Performance Considerations
+## Performance Optimizations (Implemented)
 
-- Canvas cleared each frame with `clearRect`
-- Gradients recreated each frame (could be cached)
-- No sprite sheets - all procedural drawing
-- Screen shake uses simple translate (efficient)
-- Parallax layers initialized once, positions calculated per-frame
+### Render Cache System (`js/config.js`)
+```javascript
+renderCache = {
+  initialized: boolean,
+  backgroundGlow: CanvasGradient,  // Cached radial gradient
+  parallaxCanvas: HTMLCanvasElement, // Off-screen canvas
+  parallaxCtx: CanvasRenderingContext2D,
+  parallaxDirty: boolean,  // Dirty flag for updates
+  lastParallaxOffset: {x, y},
+  hexPath: Path2D,  // Reusable hex path
+  viewBounds: { left, right, top, bottom, padding }
+}
+```
+
+### Key Optimizations
+
+1. **Off-screen Canvas for Parallax**
+   - Parallax background rendered to off-screen canvas
+   - Only redrawn when user position changes significantly
+   - Fast blit to main canvas via `drawImage()`
+
+2. **Pre-computed Values**
+   - `HEX_ANGLES[]` - Pre-calculated cos/sin for hex vertices
+   - Cached background glow gradient
+   - Cached shield radius (recalculated only when cell count changes)
+
+3. **Visibility Culling**
+   - `isVisible(x, y, radius)` function checks against view bounds
+   - Applied to: bees, hunter bees, bullets, explosions, resources, cells
+   - Skips drawing off-screen objects entirely
+
+4. **Reduced State Changes**
+   - Minimized `ctx.save()/restore()` pairs
+   - Batched similar draw operations (same fillStyle/strokeStyle)
+   - Combined beginPath() calls where possible
+
+5. **Simplified Effects**
+   - Reduced gradient stops (2 instead of 3-4)
+   - Simplified user trail (no gradients, just alpha circles)
+   - Explosion debris uses circles instead of hexagons
+
+6. **Canvas Configuration**
+   - `getContext('2d', { alpha: false })` - Disables alpha for performance
+   - `TWO_PI` constant avoids repeated `Math.PI * 2` calculations
+
+### Batching Patterns
+
+```javascript
+// Stars batched by alpha value
+const starsByAlpha = new Map();
+// ... group stars by rounded alpha
+starsByAlpha.forEach((stars, alpha) => {
+  ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+  ctx.beginPath();
+  stars.forEach(s => ctx.arc(...));
+  ctx.fill();  // Single fill for all same-alpha stars
+});
+```
+
+### Dirty Flag Pattern
+
+```javascript
+// Only redraw parallax when needed
+if (renderCache.parallaxDirty || offsetChanged) {
+  renderParallaxToCache(now, offsetX, offsetY);
+  renderCache.parallaxDirty = false;
+}
+ctx.drawImage(renderCache.parallaxCanvas, 0, 0);
+```

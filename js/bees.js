@@ -2,19 +2,44 @@
 // Bees and Hunter Bee Logic
 // ========================================
 
+import {
+  center,
+  w,
+  h,
+  BEE_MAX_HP,
+  BEE_ATTACK_RANGE,
+  BEE_HUNT_SPEED_MULTIPLIER,
+  BEE_ADDITION_COOLDOWN,
+  HUNTER_BEE_HP,
+  HUNTER_BEE_SHIELD,
+  HUNTER_BEE_SPEED,
+  HUNTER_BEE_SIZE,
+  HUNTER_FIRE_COOLDOWN,
+  HUNTER_LASER_SPEED,
+  HUNTER_LASER_DAMAGE,
+  HUNTER_SPAWN_DISTANCE,
+  honeyPerCell,
+  triggerScreenShake
+} from './config.js';
+import { pickResourceForBee, areAllResourcesDepleted, updateTotalResources } from './resources.js';
+import { cells, hiveHoney, addHiveHoney } from './cells.js';
+
 // Bee storage
-let bees = [];
-let hunterBees = [];
-let dropship = null;
-let lastBeeAdditionTime = 0;
+export let bees = [];
+export let hunterBees = [];
+export let dropship = null;
+export let lastBeeAdditionTime = 0;
 
 // Explosion arrays
-let hunterExplosions = [];
-let beeExplosions = [];
-let cellExplosions = [];
+export let hunterExplosions = [];
+export let beeExplosions = [];
+
+// Destroyed counts
+export let destroyedBees = 0;
+export let destroyedCells = 0;
 
 // Create a regular bee
-function makeBee() {
+export function makeBee() {
   return {
     x: center.x + (Math.random() * 10 - 5),
     y: center.y + (Math.random() * 10 - 5),
@@ -41,13 +66,13 @@ function makeBee() {
 }
 
 // Create bees
-function createBees(count) {
+export function createBees(count) {
   bees = [];
   for (let i = 0; i < count; i++) bees.push(makeBee());
 }
 
 // Create hunter bee
-function makeHunterBee(x, y) {
+export function makeHunterBee(x, y) {
   return {
     x,
     y,
@@ -70,7 +95,7 @@ function makeHunterBee(x, y) {
 }
 
 // Create explosion when hunter bee is destroyed
-function createHunterExplosion(x, y) {
+export function createHunterExplosion(x, y) {
   hunterExplosions.push({
     x: x,
     y: y,
@@ -83,7 +108,7 @@ function createHunterExplosion(x, y) {
 }
 
 // Create smaller explosion when regular bee is destroyed
-function createBeeExplosion(x, y) {
+export function createBeeExplosion(x, y) {
   beeExplosions.push({
     x: x,
     y: y,
@@ -96,7 +121,7 @@ function createBeeExplosion(x, y) {
 }
 
 // Spawn dropship at a distance from the user
-function spawnDropship() {
+export function spawnDropship(userIcon) {
   if (dropship || !userIcon) return;
   
   const angle = Math.random() * Math.PI * 2;
@@ -118,7 +143,7 @@ function spawnDropship() {
 }
 
 // Update dropship movement and deployment
-function updateDropship(dt) {
+export function updateDropship(dt) {
   if (!dropship) return;
   
   if (dropship.phase === 'arriving') {
@@ -158,7 +183,7 @@ function updateDropship(dt) {
 }
 
 // Update hunter bees
-function updateHunterBees(dt) {
+export function updateHunterBees(dt, userIcon, bullets) {
   for (let i = hunterBees.length - 1; i >= 0; i--) {
     const hunter = hunterBees[i];
     
@@ -231,7 +256,7 @@ function updateHunterBees(dt) {
 }
 
 // Update regular bees
-function updateBees(dt, now, preferHighPct) {
+export function updateBees(dt, now, preferHighPct, userIcon) {
   const allResourcesDepleted = areAllResourcesDepleted();
   
   bees.forEach((bee, beeIndex) => {
@@ -357,7 +382,7 @@ function updateBees(dt, now, preferHighPct) {
         bee.state = 'return';
         bee.target = { x: center.x + (Math.random()*14-7), y: center.y + (Math.random()*14-7) };
       } else if (bee.state === 'return') {
-        hiveHoney += bee.cargo;
+        addHiveHoney(bee.cargo);
         bee.cargo = 0;
         if (cells.length) {
           const randomCell = cells[Math.floor(Math.random() * cells.length)];
@@ -387,7 +412,7 @@ function updateBees(dt, now, preferHighPct) {
 }
 
 // Update explosions
-function updateExplosions(dt) {
+export function updateExplosions(dt, cellExplosions) {
   // Hunter explosions
   for (let i = hunterExplosions.length - 1; i >= 0; i--) {
     const exp = hunterExplosions[i];
@@ -426,12 +451,22 @@ function updateExplosions(dt) {
 }
 
 // Reset bees
-function resetBees() {
+export function resetBees() {
   bees = [];
   hunterBees = [];
   dropship = null;
   lastBeeAdditionTime = 0;
   hunterExplosions = [];
   beeExplosions = [];
-  cellExplosions = [];
+  destroyedBees = 0;
+  destroyedCells = 0;
 }
+
+// Setters for module state
+export function setDestroyedBees(val) { destroyedBees = val; }
+export function addDestroyedBees(val) { destroyedBees += val; }
+export function setDestroyedCells(val) { destroyedCells = val; }
+export function addDestroyedCells(val) { destroyedCells += val; }
+export function setBees(newBees) { bees = newBees; }
+export function setHunterBees(newHunterBees) { hunterBees = newHunterBees; }
+export function setDropship(newDropship) { dropship = newDropship; }

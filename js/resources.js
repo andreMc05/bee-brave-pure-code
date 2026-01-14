@@ -2,10 +2,12 @@
 // Resource Spots Management
 // ========================================
 
-let resourceSpots = [];
+import { w, h, center } from './config.js';
+
+export let resourceSpots = [];
 
 // Create resource spots
-function makeResourceSpots(count, baseAmount) {
+export function makeResourceSpots(count, baseAmount) {
   resourceSpots = [];
   for (let i = 0; i < count; i++) {
     let x, y, tries = 0;
@@ -26,19 +28,19 @@ function makeResourceSpots(count, baseAmount) {
 }
 
 // Update total resources display
-function updateTotalResources() {
+export function updateTotalResources() {
   const total = resourceSpots.reduce((s, r) => s + r.amount, 0);
   const extResEl = document.getElementById('extRes');
   if (extResEl) extResEl.textContent = Math.floor(total);
 }
 
 // Check if all resources have been gathered
-function areAllResourcesDepleted() {
+export function areAllResourcesDepleted() {
   return resourceSpots.every(r => r.amount <= 0);
 }
 
 // Pick resource for a bee based on priority
-function pickResourceForBee(bee, preferHighPct) {
+export function pickResourceForBee(bee, preferHighPct) {
   const roll = Math.random() * 100;
   let candidates = [];
   if (roll < preferHighPct) {
@@ -51,4 +53,9 @@ function pickResourceForBee(bee, preferHighPct) {
   }
   if (candidates.length === 0) return null;
   return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+// Reset resource spots
+export function resetResourceSpots() {
+  resourceSpots = [];
 }

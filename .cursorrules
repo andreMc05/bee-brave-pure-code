@@ -1,0 +1,135 @@
+# Bee Brave - Project Rules
+
+## Overview
+Canvas-based HTML5 game where player defends a beehive. Pure JavaScript (ES modules), no frameworks.
+
+## File Structure
+```
+js/
+├── config.js   → Constants, canvas setup, render cache
+├── game.js     → Main loop, initialization, state management
+├── bees.js     → Bee AI (regular + hunters), dropship system
+├── cells.js    → Hexagonal hive cells (axial coords)
+├── combat.js   → Bullets, special weapons, damage
+├── draw.js     → All rendering (1400+ lines)
+├── resources.js→ Resource spot management
+├── ui.js       → UI updates
+├── user.js     → Player movement, input, collision
+├── audio.js    → Sound effects (Web Audio API)
+```
+
+## Key Patterns
+
+### 1. ES Modules
+All JS files use ES modules with explicit imports/exports:
+```javascript
+import { w, h, center, HEX_SIZE } from './config.js';
+export function myFunction() { ... }
+```
+
+### 2. Delta Time Normalization
+All movement/timers use `dt * 0.06` for 60fps-equivalent:
+```javascript
+entity.x += velocity * (dt * 0.06);  // dt is in milliseconds
+timer -= dt;  // Timers in ms, no normalization
+```
+
+### 3. Array Mutation Pattern
+Entities are removed while iterating backwards:
+```javascript
+for (let i = array.length - 1; i >= 0; i--) {
+  if (shouldRemove(array[i])) {
+    array.splice(i, 1);
+  }
+}
+```
+
+### 4. Coordinate System
+- Origin (0,0) at top-left
+- `center` = { x: w * 0.53, y: h * 0.55 } - hive position
+- Hex grid uses axial coordinates (q, r)
+- `hexToPixel(q, r)` converts to screen coordinates
+
+### 5. Bee State Machine
+States: `forage` → `return` → `idle` → `hunt`/`attack`
+- `attack`: Player within BEE_ATTACK_RANGE (200px)
+- `hunt`: All resources depleted, permanent aggression
+
+### 6. Visibility Culling
+Use `isVisible(x, y, radius)` before drawing off-screen entities.
+
+## Important Constants (config.js)
+
+| Constant | Value | Notes |
+|----------|-------|-------|
+| HEX_SIZE | 26 | Hexagon radius in pixels |
+| BEE_MAX_HP | 3 | Regular bee health |
+| HUNTER_BEE_HP | 8 | Hunter health |
+| HUNTER_BEE_SHIELD | 25 | Hunter shield |
+| HUNTER_LASER_DAMAGE | 15 | Damage per laser |
+| HIVE_PROTECTION_DURATION | 10000 | 10s invincibility at start |
+
+## Player Constants (user.js)
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| radius | 7 | Collision radius |
+| speed | 3.3 | Base movement speed |
+| shield/maxShield | 100 | Shield amount |
+| health | 100 | Health amount |
+| invincibilityTimer | 3000 | 3s on spawn |
+
+## Bullet System (combat.js)
+
+Player bullet: `{ speed: 8, radius: 3, damage: 1 }`
+Hunter laser: `{ speed: 6, radius: 4, damage: 15 }`
+Hive bullet: `{ damage: 40 }`
+
+## Special Weapons
+
+| Weapon | Count | Effect |
+|--------|-------|--------|
+| Freeze | 3 | 80px radius, 3s slow effect |
+| Electric | 3 | 100px radius, continuous damage |
+| Warp | 2 | 150px teleport forward |
+
+## Common Gotchas
+
+1. **Don't forget dt normalization** - Movement uses `* (dt * 0.06)`
+2. **Check null before use** - `userIcon` can be null when dead
+3. **Protection check** - Hive immune for first 10s: `(now - gameStartTime) < HIVE_PROTECTION_DURATION`
+4. **Frozen multiplier** - When bee/hunter frozen, multiply speed by `frozenSpeed` (0.1-0.2)
+
+## Screen Shake
+
+```javascript
+triggerScreenShake(intensity, duration);
+// Typical values:
+// Bee explosion: (2, 100)
+// Hunter explosion: (8, 300)
+// Player hit: (4, 150)
+// Player death: (15, 500)
+```
+
+## Render Order (draw.js)
+
+1. Parallax background
+2. Background glow
+3. Resources
+4. Hive cells
+5. Protection shield
+6. Bees
+7. Dropship + Hunters
+8. Explosions
+9. Bullets
+10. Weapon effects
+11. Spawn indicator
+12. User trail + User icon
+
+## For detailed docs, see `dev-knowledge/`:
+- `architecture.md` - Full architecture details
+- `bees.md` - Bee system deep dive
+- `combat.md` - Combat mechanics
+- `rendering.md` - Draw system details
+- `game-state.md` - State management
+- `config-reference.md` - All constants

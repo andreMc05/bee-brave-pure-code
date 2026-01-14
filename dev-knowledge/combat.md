@@ -231,18 +231,27 @@ triggerScreenShake(10, 400);  // Player death
 ## Related Config Constants
 
 ```javascript
-// Player
-const PLAYER_BULLET_SPEED = ?;
-const PLAYER_BULLET_DAMAGE = ?;
-const SHIELD_REGEN_DELAY = ?;
-const SHIELD_REGEN_RATE = ?;
+// Player (hardcoded in combat.js and user.js)
+const PLAYER_BULLET_SPEED = 8;       // combat.js shoot()
+const PLAYER_BULLET_DAMAGE = 1;      // 1 HP per hit to bees
+const PLAYER_BULLET_RADIUS = 3;      // Collision radius
+const HIVE_BULLET_DAMAGE = 40;       // Hive defensive shots
+const SHIELD_REGEN_RATE = 0.02;      // dt * 0.02 when not taking damage
 
-// Hunter
-const HUNTER_LASER_SPEED = ?;
-const HUNTER_LASER_DAMAGE = ?;
-const HUNTER_FIRE_COOLDOWN = ?;
+// Hunter (from config.js)
+const HUNTER_LASER_SPEED = 6;
+const HUNTER_LASER_DAMAGE = 15;
+const HUNTER_FIRE_COOLDOWN = 1500;   // ms between shots
 
-// Scoring
-const BEE_KILL_SCORE = ?;
-const HUNTER_KILL_SCORE = ?;
+// Special Weapons (hardcoded in combat.js)
+const FREEZE_RADIUS = 80;
+const FREEZE_DURATION = 3000;        // 3 seconds
+const ELECTRIC_RADIUS = 100;
+const ELECTRIC_DURATION = 500;       // 0.5 seconds
+const WARP_DISTANCE = 150;           // pixels forward
+
+// Damage Multipliers (from user.js)
+const BEE_DAMAGE_NORMAL = 1.0;
+const BEE_DAMAGE_ATTACK = 1.5;       // When bee in attack state
+const BEE_DAMAGE_HUNT = 2.0;         // When bee in hunt state
 ```

@@ -2,11 +2,16 @@
 // User/Player - Movement and Input
 // ========================================
 
+import { w, h, center, TRAIL_MAX_AGE, TRAIL_SPACING, triggerScreenShake } from './config.js';
+import { initAudioContext, isEngineRunning, startEngineSound, stopEngineSound, playExplosionSound } from './audio.js';
+import { bees } from './bees.js';
+import { shoot, useSpecialWeapon, cycleWeapon } from './combat.js';
+
 // User state
-let userIcon = null;
-let spawnIndicator = null;
-let userExplosion = null;
-let userTrail = [];
+export let userIcon = null;
+export let spawnIndicator = null;
+export let userExplosion = null;
+export let userTrail = [];
 let lastTrailX = null;
 let lastTrailY = null;
 
@@ -16,8 +21,20 @@ let spacePressed = false;
 let vKeyPressed = false;
 let shiftKeyPressed = false;
 
+// Game state references (set by game.js)
+let gameStartedRef = { value: false };
+let gameOverRef = { value: false };
+let restartGameFn = null;
+
+// Set game state references
+export function setGameStateRefs(started, over, restartFn) {
+  gameStartedRef = started;
+  gameOverRef = over;
+  restartGameFn = restartFn;
+}
+
 // Initialize input handlers
-function initInput() {
+export function initInput() {
   window.addEventListener('keydown', (e) => {
     initAudioContext();
     const k = e.key.toLowerCase();
@@ -30,14 +47,14 @@ function initInput() {
       e.preventDefault();
       if (!spacePressed) {
         spacePressed = true;
-        shoot();
+        shoot(userIcon, gameStartedRef.value);
       }
     }
     if (e.key.toLowerCase() === 'v') {
       e.preventDefault();
       if (!vKeyPressed) {
         vKeyPressed = true;
-        useSpecialWeapon();
+        useSpecialWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
       }
     }
     if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
@@ -69,14 +86,14 @@ function initInput() {
 
   // Allow restart with R key
   window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'r' && gameOver) {
-      restartGame();
+    if (e.key.toLowerCase() === 'r' && gameOverRef.value && restartGameFn) {
+      restartGameFn();
     }
   });
 }
 
 // Place user icon at random position
-function placeUserIcon() {
+export function placeUserIcon() {
   let x, y, tries = 0;
   do {
     x = Math.random() * w;
@@ -116,8 +133,8 @@ function placeUserIcon() {
 }
 
 // Move user icon based on input
-function moveUserIcon(dt) {
-  if (!userIcon || !gameStarted) return;
+export function moveUserIcon(dt) {
+  if (!userIcon || !gameStartedRef.value) return;
   const step = userIcon.speed * dt * 0.06;
   let dx = 0, dy = 0;
   
@@ -167,8 +184,8 @@ function moveUserIcon(dt) {
       lastTrailX = userIcon.x;
       lastTrailY = userIcon.y;
     } else {
-      const distMoved = Math.hypot(userIcon.x - lastTrailX, userIcon.y - lastTrailY);
-      if (distMoved >= TRAIL_SPACING) {
+      const distMovedTrail = Math.hypot(userIcon.x - lastTrailX, userIcon.y - lastTrailY);
+      if (distMovedTrail >= TRAIL_SPACING) {
         const behindDistance = 15;
         const trailX = userIcon.x - Math.cos(userIcon.angle) * behindDistance;
         const trailY = userIcon.y - Math.sin(userIcon.angle) * behindDistance;
@@ -196,7 +213,7 @@ function moveUserIcon(dt) {
 }
 
 // Update user state
-function updateUser(dt, now) {
+export function updateUser(dt, now) {
   moveUserIcon(dt);
 
   // Update trail
@@ -226,8 +243,8 @@ function updateUser(dt, now) {
     
     if (userExplosion.duration <= 0) {
       userExplosion = null;
-      if (!gameOver) {
-        gameOver = true;
+      if (!gameOverRef.value) {
+        gameOverRef.value = true;
         document.getElementById('gameOver').classList.add('show');
       }
     }
@@ -296,8 +313,8 @@ function updateUser(dt, now) {
 }
 
 // Check if user should trigger game over
-function checkUserDeath() {
-  if (userIcon && userIcon.health <= 0 && !gameOver && !userExplosion) {
+export function checkUserDeath() {
+  if (userIcon && userIcon.health <= 0 && !gameOverRef.value && !userExplosion) {
     stopEngineSound();
     playExplosionSound();
     
@@ -316,11 +333,21 @@ function checkUserDeath() {
 }
 
 // Reset user state
-function resetUser() {
+export function resetUser() {
   userExplosion = null;
   userTrail = [];
   lastTrailX = null;
   lastTrailY = null;
   spawnIndicator = null;
   placeUserIcon();
+}
+
+// Get user icon reference (for passing to other modules)
+export function getUserIcon() {
+  return userIcon;
+}
+
+// Set user icon (for game reset)
+export function setUserIcon(icon) {
+  userIcon = icon;
 }
