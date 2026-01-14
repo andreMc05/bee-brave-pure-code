@@ -9,6 +9,7 @@ import {
   HIVE_PROTECTION_DURATION 
 } from './config.js';
 import { initAudioContext, stopEngineSound, isEngineRunning } from './audio.js';
+import { startMusic, stopMusic, setMusicVolume, isMusicPlaying, toggleMusic } from './music.js';
 import { makeResourceSpots, resetResourceSpots } from './resources.js';
 import { cells, updateCells, resetCells, cellExplosions } from './cells.js';
 import { 
@@ -44,7 +45,7 @@ import {
   setGameStateRefs
 } from './user.js';
 import { draw } from './draw.js';
-import { initUI, updateGameUI, setGameFunctions } from './ui.js';
+import { initUI, updateGameUI, setGameFunctions, resetUICache } from './ui.js';
 
 // Game state
 let gameOver = false;
@@ -153,6 +154,10 @@ function startGame() {
   gameStarted = true;
   gameStartedRef.value = true;
   gameStartTime = performance.now();
+  
+  // Start background music
+  startMusic();
+  updateMusicToggleUI();
 }
 
 // Restart game
@@ -167,6 +172,9 @@ function restartGame() {
   score = 0;
   setDestroyedBees(0);
   setDestroyedCells(0);
+  
+  // Reset UI cache for fresh updates
+  resetUICache();
   
   // Reset game start time
   gameStartTime = performance.now();
@@ -199,6 +207,8 @@ function returnToSettings() {
   document.getElementById('startScreen').classList.remove('hidden');
   
   stopEngineSound();
+  stopMusic();
+  updateMusicToggleUI();
   
   // Clear game state
   resetCombat();
@@ -211,6 +221,9 @@ function returnToSettings() {
   score = 0;
   setDestroyedBees(0);
   setDestroyedCells(0);
+  
+  // Reset UI cache
+  resetUICache();
 }
 
 // Initialize game
@@ -230,11 +243,47 @@ function initGame() {
   // Initialize UI
   initUI();
   
+  // Initialize music controls
+  initMusicControls();
+  
   // Initialize input handlers
   initInput();
   
   // Start game loop
   requestAnimationFrame(loop);
+}
+
+// Initialize music controls
+function initMusicControls() {
+  const musicToggle = document.getElementById('musicToggle');
+  const musicVolume = document.getElementById('musicVolume');
+  
+  if (musicToggle) {
+    musicToggle.addEventListener('click', () => {
+      toggleMusic();
+      updateMusicToggleUI();
+    });
+  }
+  
+  if (musicVolume) {
+    musicVolume.addEventListener('input', (e) => {
+      setMusicVolume(e.target.value / 100);
+    });
+  }
+}
+
+// Update music toggle button appearance
+function updateMusicToggleUI() {
+  const musicToggle = document.getElementById('musicToggle');
+  if (musicToggle) {
+    if (isMusicPlaying()) {
+      musicToggle.classList.add('playing');
+      musicToggle.textContent = '🎵';
+    } else {
+      musicToggle.classList.remove('playing');
+      musicToggle.textContent = '🔇';
+    }
+  }
 }
 
 // Start when DOM is loaded

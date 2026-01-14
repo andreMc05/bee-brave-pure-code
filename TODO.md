@@ -39,7 +39,7 @@
 
 ## 🔊 Audio
 
-- [ ] Add background music
+- [x] Add background music
 - [ ] Improve sound effect variety
 - [ ] Add volume controls in settings
 - [ ] Implement mute toggle
@@ -49,7 +49,7 @@
 - [ ] Add pause menu
 - [ ] Create tutorial/instructions screen
 - [ ] Add mobile touch controls
-- [ ] Improve settings panel layout
+- [x] Improve settings panel layout
 - [ ] Add game statistics screen
 
 ## 🐛 Bug Fixes
@@ -61,7 +61,7 @@
 ## 📝 Code Quality
 
 - [ ] Add code comments/documentation
-- [ ] Refactor into ES6 modules
+- [x] Refactor into ES6 modules
 - [ ] Add unit tests
 - [x] Optimize canvas rendering
 

@@ -10,81 +10,120 @@
   <!-- Start Screen -->
   <div id="startScreen">
     <div id="startScreenContent">
-      <h1>Bee-Brave</h1>
-      <div class="subtitle">Configure your game settings and prepare for battle!</div>
+      <h1>🐝 Bee-Brave</h1>
+      <div class="subtitle">Defend the hive against relentless attackers!</div>
 
       <div class="section">
-        <div class="section-title">Game Settings</div>
-        <div class="control">
-          <label for="startColonySize">
-            Colony size
-            <span id="startColonySizeVal">12</span>
-          </label>
-          <input type="range" min="3" max="30" value="12" id="startColonySize">
+        <div class="section-title">
+          <span class="section-icon">⚙️</span>
+          Game Settings
         </div>
+        <div class="settings-grid">
+          <div class="control">
+            <label for="startColonySize">
+              <span class="control-icon">🐝</span>
+              <span class="control-text">Colony size</span>
+              <span class="control-value" id="startColonySizeVal">12</span>
+            </label>
+            <input type="range" min="3" max="30" value="12" id="startColonySize">
+            <div class="range-labels"><span>3</span><span>30</span></div>
+          </div>
 
-        <div class="control">
-          <label for="startMaxColonySize">
-            Max colony size
-            <span id="startMaxColonySizeVal">30</span>
-          </label>
-          <input type="range" min="3" max="100" value="30" id="startMaxColonySize">
-        </div>
+          <div class="control">
+            <label for="startMaxColonySize">
+              <span class="control-icon">👑</span>
+              <span class="control-text">Max colony</span>
+              <span class="control-value" id="startMaxColonySizeVal">30</span>
+            </label>
+            <input type="range" min="3" max="100" value="30" id="startMaxColonySize">
+            <div class="range-labels"><span>3</span><span>100</span></div>
+          </div>
 
-        <div class="control">
-          <label for="startResourceCount">
-            Resource locations
-            <span id="startResourceCountVal">6</span>
-          </label>
-          <input type="range" min="1" max="20" value="6" id="startResourceCount">
-        </div>
+          <div class="control">
+            <label for="startResourceCount">
+              <span class="control-icon">🌸</span>
+              <span class="control-text">Resource spots</span>
+              <span class="control-value" id="startResourceCountVal">6</span>
+            </label>
+            <input type="range" min="1" max="20" value="6" id="startResourceCount">
+            <div class="range-labels"><span>1</span><span>20</span></div>
+          </div>
 
-        <div class="control">
-          <label for="startResourceAmount">
-            Resource amount
-            <span id="startResourceAmountVal">120</span>
-          </label>
-          <input type="range" min="20" max="300" value="120" id="startResourceAmount">
-        </div>
+          <div class="control">
+            <label for="startResourceAmount">
+              <span class="control-icon">💧</span>
+              <span class="control-text">Resource amount</span>
+              <span class="control-value" id="startResourceAmountVal">120</span>
+            </label>
+            <input type="range" min="20" max="300" value="120" id="startResourceAmount">
+            <div class="range-labels"><span>20</span><span>300</span></div>
+          </div>
 
-        <div class="control">
-          <label for="startPriorityPercent">
-            % bees prefer 90%+ sites
-            <span id="startPriorityPercentVal">60%</span>
-          </label>
-          <input type="range" min="0" max="100" value="60" id="startPriorityPercent">
-        </div>
+          <div class="control">
+            <label for="startPriorityPercent">
+              <span class="control-icon">🎯</span>
+              <span class="control-text">Priority %</span>
+              <span class="control-value" id="startPriorityPercentVal">60%</span>
+            </label>
+            <input type="range" min="0" max="100" value="60" id="startPriorityPercent">
+            <div class="range-labels"><span>0%</span><span>100%</span></div>
+          </div>
 
-        <div class="control">
-          <label for="startShotDistance">
-            Shot distance
-            <span id="startShotDistanceVal">200</span>
-          </label>
-          <input type="range" min="50" max="500" value="200" id="startShotDistance">
+          <div class="control">
+            <label for="startShotDistance">
+              <span class="control-icon">🎯</span>
+              <span class="control-text">Shot distance</span>
+              <span class="control-value" id="startShotDistanceVal">200</span>
+            </label>
+            <input type="range" min="50" max="500" value="200" id="startShotDistance">
+            <div class="range-labels"><span>50</span><span>500</span></div>
+          </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Controls</div>
-        <div class="controls-info">
-          <div><strong>Movement:</strong> A/← (left), W/↑ (up), S/X/↓ (down), D/→ (right)</div>
-          <div><strong>Shoot:</strong> Space</div>
-          <div><strong>Special Weapon:</strong> V (Freeze Bomb, Electric Blast, or Warp)</div>
-          <div><strong>Cycle Weapon:</strong> Shift</div>
+      <div class="bottom-sections">
+        <div class="section controls-section">
+          <div class="section-title">
+            <span class="section-icon">🎮</span>
+            Controls
+          </div>
+          <div class="controls-grid">
+            <div class="control-item">
+              <div class="key-group">
+                <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+              </div>
+              <span class="control-desc">Move</span>
+            </div>
+            <div class="control-item">
+              <kbd class="wide">Space</kbd>
+              <span class="control-desc">Shoot</span>
+            </div>
+            <div class="control-item">
+              <kbd>V</kbd>
+              <span class="control-desc">Special</span>
+            </div>
+            <div class="control-item">
+              <kbd>Shift</kbd>
+              <span class="control-desc">Cycle</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section legend-section-container">
+          <div class="section-title">
+            <span class="section-icon">📖</span>
+            Legend
+          </div>
+          <div class="legend-grid">
+            <span class="badge"><span class="dot hex"></span>Hive cell</span>
+            <span class="badge"><span class="dot honey"></span>Honey-filled</span>
+            <span class="badge"><span class="dot bee"></span>Worker bee</span>
+            <span class="badge"><span class="dot flower"></span>Resource</span>
+          </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Legend</div>
-        <div class="legend-section">
-          <span class="badge"><span class="dot hex"></span>Hive cell</span>
-          <span class="badge"><span class="dot honey"></span>Honey-filled</span>
-          <span class="badge"><span class="dot bee"></span>Worker bee</span>
-          <span class="badge"><span class="dot flower"></span>Resource</span>
-        </div>
-      </div>
-
-      <button id="startBtn">Start Game</button>
+      <button id="startBtn">⚔️ Start Game</button>
     </div>
   </div>
 
@@ -128,7 +167,7 @@
           <span class="value" id="shieldValue">100%</span>
         </div>
         <div class="bar-bg">
-          <div class="bar-fill shield" id="shieldBar" style="width: 100%;"></div>
+          <div class="bar-fill shield" id="shieldBar"></div>
         </div>
       </div>
       <div class="bar-container">
@@ -137,8 +176,16 @@
           <span class="value" id="healthValue">100%</span>
         </div>
         <div class="bar-bg">
-          <div class="bar-fill health" id="healthBar" style="width: 100%;"></div>
+          <div class="bar-fill health" id="healthBar"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Music Controls -->
+    <div class="stat-section music-section">
+      <div class="music-controls">
+        <button id="musicToggle" class="music-toggle" title="Toggle Music">🔇</button>
+        <input type="range" id="musicVolume" min="0" max="100" value="30" class="music-slider" title="Music Volume">
       </div>
     </div>
 

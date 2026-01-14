@@ -257,40 +257,71 @@ function setupButtonHandlers() {
   }
 }
 
-// Update game UI displays
+// Cache previous values to avoid unnecessary DOM updates
+let prevShieldPercent = -1;
+let prevHealthPercent = -1;
+let prevScore = -1;
+let prevColonyCount = -1;
+let prevShieldLow = false;
+let prevHealthClass = '';
+
+// Update game UI displays (OPTIMIZED - only update DOM when values change)
 export function updateGameUI(score) {
-  const cellsEl = document.getElementById('cells');
-  const honeyEl = document.getElementById('honey');
+  if (!userIcon) return;
   
-  if (cellsEl) cellsEl.textContent = cells.length;
-  if (honeyEl) honeyEl.textContent = Math.floor(hiveHoney);
-  
-  if (userIcon) {
-    // Update shield bar
-    const shieldPercent = (userIcon.shield / userIcon.maxShield) * 100;
+  // Update shield bar (only if changed)
+  const shieldPercent = Math.floor((userIcon.shield / userIcon.maxShield) * 100);
+  if (shieldPercent !== prevShieldPercent) {
+    prevShieldPercent = shieldPercent;
     if (shieldBar) {
-      shieldBar.style.width = shieldPercent + '%';
-      shieldBar.classList.toggle('low', shieldPercent < 30);
-    }
-    if (shieldValue) shieldValue.textContent = Math.floor(shieldPercent) + '%';
-    
-    // Update health bar
-    const healthPercent = userIcon.health;
-    if (healthBar) {
-      healthBar.style.width = healthPercent + '%';
-      healthBar.className = 'bar-fill health';
-      if (healthPercent < 25) {
-        healthBar.classList.add('low');
-      } else if (healthPercent < 50) {
-        healthBar.classList.add('medium');
+      // Use transform for GPU-accelerated rendering
+      shieldBar.style.transform = `scaleX(${shieldPercent / 100})`;
+      const isLow = shieldPercent < 30;
+      if (isLow !== prevShieldLow) {
+        prevShieldLow = isLow;
+        shieldBar.classList.toggle('low', isLow);
       }
     }
-    if (healthValue) healthValue.textContent = Math.floor(healthPercent) + '%';
-    
-    // Update score
-    if (scoreDisplay) scoreDisplay.textContent = score.toLocaleString();
-    
-    // Update colony counter
-    if (colonyDisplay) colonyDisplay.textContent = bees.length;
+    if (shieldValue) shieldValue.textContent = shieldPercent + '%';
   }
+  
+  // Update health bar (only if changed)
+  const healthPercent = Math.floor(userIcon.health);
+  if (healthPercent !== prevHealthPercent) {
+    prevHealthPercent = healthPercent;
+    if (healthBar) {
+      // Use transform for GPU-accelerated rendering
+      healthBar.style.transform = `scaleX(${healthPercent / 100})`;
+      // Determine health class
+      const newHealthClass = healthPercent < 25 ? 'low' : healthPercent < 50 ? 'medium' : '';
+      if (newHealthClass !== prevHealthClass) {
+        prevHealthClass = newHealthClass;
+        healthBar.className = 'bar-fill health' + (newHealthClass ? ' ' + newHealthClass : '');
+      }
+    }
+    if (healthValue) healthValue.textContent = healthPercent + '%';
+  }
+  
+  // Update score (only if changed)
+  if (score !== prevScore) {
+    prevScore = score;
+    if (scoreDisplay) scoreDisplay.textContent = score.toLocaleString();
+  }
+  
+  // Update colony counter (only if changed)
+  const colonyCount = bees.length;
+  if (colonyCount !== prevColonyCount) {
+    prevColonyCount = colonyCount;
+    if (colonyDisplay) colonyDisplay.textContent = colonyCount;
+  }
+}
+
+// Reset UI cache (call when restarting game)
+export function resetUICache() {
+  prevShieldPercent = -1;
+  prevHealthPercent = -1;
+  prevScore = -1;
+  prevColonyCount = -1;
+  prevShieldLow = false;
+  prevHealthClass = '';
 }
