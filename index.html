@@ -2,16 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bee Brave - Beehive Defense Game</title>
+  <title>Bee Brave - Galactic Battle for Resources</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="preload" href="assets/images/Gemini_Generated_Image_cevjaacevjaacevj.png" as="image">
 </head>
 <body>
-  <!-- Start Screen -->
-  <div id="startScreen">
+  <!-- Landing Screen -->
+  <div id="landingScreen">
+    <div class="landing-bg" style="background-image: url('assets/images/Gemini_Generated_Image_cevjaacevjaacevj.png');"></div>
+    <div class="landing-overlay"></div>
+    <div class="landing-content">
+      <div class="landing-header">
+        <h1 class="landing-title">BEE BRAVE</h1>
+        <p class="landing-subtitle">Galactic Battle for Resources</p>
+      </div>
+      
+      <div class="landing-stats">
+        <div class="high-score-display">
+          <span class="high-score-label">High Score</span>
+          <span class="high-score-value" id="highScoreValue">0</span>
+        </div>
+      </div>
+      
+      <div class="landing-buttons">
+        <button id="quickPlayBtn" class="landing-btn primary">
+          <span class="btn-icon">🚀</span>
+          <span class="btn-text">Quick Play</span>
+        </button>
+        <button id="customGameBtn" class="landing-btn secondary">
+          <span class="btn-icon">⚙️</span>
+          <span class="btn-text">Custom Game</span>
+        </button>
+        <button id="howToPlayBtn" class="landing-btn tertiary">
+          <span class="btn-icon">📖</span>
+          <span class="btn-text">How to Play</span>
+        </button>
+      </div>
+      
+      <div class="landing-audio-controls">
+        <button id="landingMusicToggle" class="landing-music-btn" title="Toggle Music">🔇</button>
+        <span class="audio-label">Music</span>
+      </div>
+      
+      <div class="landing-footer">
+        <span class="version">v1.0</span>
+      </div>
+    </div>
+    
+    <!-- How to Play Modal -->
+    <div id="howToPlayModal" class="modal hidden">
+      <div class="modal-content">
+        <button class="modal-close" id="closeHowToPlay">&times;</button>
+        <h2>How to Play</h2>
+        <div class="how-to-grid">
+          <div class="how-to-section">
+            <h3>🎯 Objective</h3>
+            <p>Destroy the alien beehive and eliminate all bees before they deplete your health!</p>
+          </div>
+          <div class="how-to-section">
+            <h3>🎮 Controls</h3>
+            <div class="control-list">
+              <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> - Move ship</div>
+              <div><kbd>Space</kbd> - Fire weapons</div>
+              <div><kbd>V</kbd> - Use special weapon</div>
+              <div><kbd>Shift</kbd> - Cycle weapons</div>
+            </div>
+          </div>
+          <div class="how-to-section">
+            <h3>⚡ Special Weapons</h3>
+            <div class="weapon-list">
+              <div>❄️ <strong>Freeze</strong> - Slows enemies</div>
+              <div>⚡ <strong>Electric</strong> - Area damage</div>
+              <div>🌀 <strong>Warp</strong> - Teleport forward</div>
+            </div>
+          </div>
+          <div class="how-to-section">
+            <h3>⚠️ Tips</h3>
+            <ul>
+              <li>Hive is protected for 10 seconds at start</li>
+              <li>Don't stay still - hunters will find you!</li>
+              <li>Destroy honey cells for bonus points</li>
+            </ul>
+          </div>
+        </div>
+        <button id="gotItBtn" class="landing-btn primary" style="margin-top: 20px;">Got It!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen (Settings) -->
+  <div id="startScreen" class="hidden">
     <div id="startScreenContent">
+      <button id="backToLanding" class="back-btn">← Back</button>
       <h1>🐝 Bee-Brave</h1>
-      <div class="subtitle">Defend the hive against relentless attackers!</div>
+      <div class="subtitle">Customize your mission parameters</div>
 
       <div class="section">
         <div class="section-title">
@@ -123,7 +208,7 @@
         </div>
       </div>
 
-      <button id="startBtn">⚔️ Start Game</button>
+      <button id="startBtn">⚔️ Launch Mission</button>
     </div>
   </div>
 
@@ -219,9 +304,14 @@
   <div id="gameOver">
     <h2>GAME OVER</h2>
     <p>Your health has been depleted!</p>
+    <div class="final-score">
+      <span class="final-score-label">Final Score</span>
+      <span class="final-score-value" id="finalScoreValue">0</span>
+    </div>
     <div class="button-container">
-      <button id="restartBtn">Restart Game</button>
-      <button id="settingsBtn">Return to Settings</button>
+      <button id="restartBtn">Play Again</button>
+      <button id="settingsBtn">Custom Game</button>
+      <button id="mainMenuBtn">Main Menu</button>
     </div>
   </div>
 

@@ -13,6 +13,8 @@ import {
   directions,
   triggerScreenShake
 } from './config.js';
+import { playCellExplosionSound } from './audio.js';
+import { spawnExplosionParticles } from './particles.js';
 
 // Cell storage
 export let cells = [{ q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 }];
@@ -154,8 +156,12 @@ export function createCellExplosion(x, y) {
     maxDuration: 500,
     radius: 10
   });
+  // Spawn particles for the explosion
+  spawnExplosionParticles(x, y, 'cell');
   // Trigger screen shake for cell destruction
   triggerScreenShake(6, 250);
+  // Play cell explosion sound
+  playCellExplosionSound();
 }
 
 // Setters for module state

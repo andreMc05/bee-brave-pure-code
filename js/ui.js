@@ -24,6 +24,7 @@ let startShotDistanceInput, startShotDistanceVal;
 let scoreDisplay, colonyDisplay;
 let shieldBar, shieldValue, healthBar, healthValue;
 let gameOverEl, startScreen, startBtn, restartBtn, settingsBtn;
+let finalScoreValue;
 
 // Game functions to be set from game.js
 let createBeesFn = null;
@@ -87,6 +88,7 @@ export function initUI() {
   startBtn = document.getElementById('startBtn');
   restartBtn = document.getElementById('restartBtn');
   settingsBtn = document.getElementById('settingsBtn');
+  finalScoreValue = document.getElementById('finalScoreValue');
 
   // Initialize slider values
   initSliderValues();
@@ -324,4 +326,11 @@ export function resetUICache() {
   prevColonyCount = -1;
   prevShieldLow = false;
   prevHealthClass = '';
+}
+
+// Display final score on game over screen
+export function showFinalScore(score) {
+  if (finalScoreValue) {
+    finalScoreValue.textContent = score.toLocaleString();
+  }
 }

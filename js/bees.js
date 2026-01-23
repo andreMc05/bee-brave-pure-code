@@ -21,6 +21,13 @@ import {
   honeyPerCell,
   triggerScreenShake
 } from './config.js';
+import { 
+  playBeeExplosionSound, 
+  playHunterExplosionSound, 
+  playHunterLaserSound,
+  playDropshipWarningSound 
+} from './audio.js';
+import { spawnExplosionParticles } from './particles.js';
 import { pickResourceForBee, areAllResourcesDepleted, updateTotalResources } from './resources.js';
 import { cells, hiveHoney, addHiveHoney } from './cells.js';
 
@@ -103,8 +110,12 @@ export function createHunterExplosion(x, y) {
     maxDuration: 600,
     radius: 5
   });
+  // Spawn particles for the explosion
+  spawnExplosionParticles(x, y, 'hunter');
   // Trigger screen shake for hunter explosion
   triggerScreenShake(8, 300);
+  // Play explosion sound
+  playHunterExplosionSound();
 }
 
 // Create smaller explosion when regular bee is destroyed
@@ -116,8 +127,12 @@ export function createBeeExplosion(x, y) {
     maxDuration: 300,
     radius: 3
   });
+  // Spawn particles for the explosion
+  spawnExplosionParticles(x, y, 'bee');
   // Trigger small screen shake for bee explosion
   triggerScreenShake(2, 100);
+  // Play bee explosion sound
+  playBeeExplosionSound();
 }
 
 // Spawn dropship at a distance from the user
@@ -140,6 +155,9 @@ export function spawnDropship(userIcon) {
     deployTimer: 0,
     angle: angle + Math.PI
   };
+  
+  // Play warning sound for incoming dropship
+  playDropshipWarningSound();
 }
 
 // Update dropship movement and deployment
@@ -244,6 +262,8 @@ export function updateHunterBees(dt, userIcon, bullets) {
         damage: HUNTER_LASER_DAMAGE
       });
       hunter.fireCooldown = HUNTER_FIRE_COOLDOWN;
+      // Play laser sound
+      playHunterLaserSound();
     }
     
     // Remove if destroyed

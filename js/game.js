@@ -45,7 +45,8 @@ import {
   setGameStateRefs
 } from './user.js';
 import { draw } from './draw.js';
-import { initUI, updateGameUI, setGameFunctions, resetUICache } from './ui.js';
+import { initUI, updateGameUI, setGameFunctions, resetUICache, showFinalScore } from './ui.js';
+import { updateParticles, resetParticles } from './particles.js';
 
 // Game state
 let gameOver = false;
@@ -54,6 +55,10 @@ let gameStartTime = 0;
 
 // Score tracking
 let score = 0;
+let highScore = 0;
+
+// Local storage key
+const HIGH_SCORE_KEY = 'beeBrave_highScore';
 
 // Refs for cross-module state
 const gameStartedRef = { value: false };
@@ -83,6 +88,9 @@ function update(now, dt) {
   
   // Update explosions
   updateExplosions(dt, cellExplosions);
+  
+  // Update particles
+  updateParticles(dt);
   
   // Update weapon effects
   updateWeaponEffects(dt);
@@ -120,11 +128,92 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-// Start game
-function startGame() {
+// Load high score from localStorage
+function loadHighScore() {
+  try {
+    const saved = localStorage.getItem(HIGH_SCORE_KEY);
+    highScore = saved ? parseInt(saved, 10) : 0;
+  } catch (e) {
+    highScore = 0;
+  }
+  updateHighScoreDisplay();
+}
+
+// Save high score to localStorage
+function saveHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    try {
+      localStorage.setItem(HIGH_SCORE_KEY, highScore.toString());
+    } catch (e) {
+      console.warn('Could not save high score');
+    }
+    updateHighScoreDisplay();
+  }
+}
+
+// Update high score display
+function updateHighScoreDisplay() {
+  const el = document.getElementById('highScoreValue');
+  if (el) el.textContent = highScore.toLocaleString();
+}
+
+// Quick play - start with default settings
+function quickPlay() {
   initAudioContext();
   
-  // Sync settings from start screen
+  // Hide landing screen
+  document.getElementById('landingScreen').classList.add('hidden');
+  
+  // Use default values (already set in HTML)
+  syncSettingsToGame();
+  launchGame();
+}
+
+// Custom game - go to settings screen
+function showSettings() {
+  document.getElementById('landingScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}
+
+// Back to landing from settings
+function backToLanding() {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('landingScreen').classList.remove('hidden');
+}
+
+// Return to main menu from game over
+function returnToMainMenu() {
+  gameOver = false;
+  gameOverRef.value = false;
+  gameStarted = false;
+  gameStartedRef.value = false;
+  document.getElementById('gameOver').classList.remove('show');
+  document.getElementById('landingScreen').classList.remove('hidden');
+  
+  stopEngineSound();
+  stopMusic();
+  updateAllMusicToggles();
+  
+  // Clear game state
+  resetCombat();
+  resetBees();
+  resetUser();
+  resetParticles();
+  cells.length = 0;
+  resetResourceSpots();
+  
+  // Reset score
+  score = 0;
+  setDestroyedBees(0);
+  setDestroyedCells(0);
+  
+  // Reset UI cache
+  resetUICache();
+}
+
+// Sync settings from start screen to hidden game controls
+function syncSettingsToGame() {
   document.getElementById('colonySize').value = document.getElementById('startColonySize').value;
   document.getElementById('colonySizeVal').textContent = document.getElementById('startColonySize').value;
   document.getElementById('maxColonySize').value = document.getElementById('startMaxColonySize').value;
@@ -137,7 +226,10 @@ function startGame() {
   document.getElementById('priorityPercentVal').textContent = document.getElementById('startPriorityPercent').value + '%';
   document.getElementById('shotDistance').value = document.getElementById('startShotDistance').value;
   document.getElementById('shotDistanceVal').textContent = document.getElementById('startShotDistance').value;
+}
 
+// Launch the actual game
+function launchGame() {
   // Initialize game
   createBees(+document.getElementById('colonySize').value);
   makeResourceSpots(+document.getElementById('resourceCount').value, +document.getElementById('resourceAmount').value);
@@ -149,15 +241,26 @@ function startGame() {
   setDestroyedBees(0);
   setDestroyedCells(0);
 
-  // Hide start screen
-  document.getElementById('startScreen').classList.add('hidden');
   gameStarted = true;
   gameStartedRef.value = true;
   gameStartTime = performance.now();
   
   // Start background music
   startMusic();
-  updateMusicToggleUI();
+  updateAllMusicToggles();
+}
+
+// Start game from settings screen
+function startGame() {
+  initAudioContext();
+  
+  // Sync settings
+  syncSettingsToGame();
+
+  // Hide start screen
+  document.getElementById('startScreen').classList.add('hidden');
+  
+  launchGame();
 }
 
 // Restart game
@@ -193,6 +296,9 @@ function restartGame() {
   resetCombat();
   updateWeaponUI();
   
+  // Reset particles
+  resetParticles();
+  
   // Reset hive
   resetCells();
 }
@@ -208,12 +314,13 @@ function returnToSettings() {
   
   stopEngineSound();
   stopMusic();
-  updateMusicToggleUI();
+  updateAllMusicToggles();
   
   // Clear game state
   resetCombat();
   resetBees();
   resetUser();
+  resetParticles();
   cells.length = 0;
   resetResourceSpots();
   
@@ -228,6 +335,9 @@ function returnToSettings() {
 
 // Initialize game
 function initGame() {
+  // Load high score
+  loadHighScore();
+  
   // Create a ref object for userIcon (used for resize)
   const userIconRef = { get current() { return userIcon; } };
   
@@ -235,13 +345,16 @@ function initGame() {
   initCanvas(userIconRef);
   
   // Set game state refs for user module
-  setGameStateRefs(gameStartedRef, gameOverRef, restartGame);
+  setGameStateRefs(gameStartedRef, gameOverRef, restartGame, handleGameOver);
   
   // Set game functions for UI module
   setGameFunctions(createBees, makeResourceSpots, startGame, restartGame, returnToSettings, gameStartedRef);
   
   // Initialize UI
   initUI();
+  
+  // Initialize landing screen
+  initLandingScreen();
   
   // Initialize music controls
   initMusicControls();
@@ -253,6 +366,61 @@ function initGame() {
   requestAnimationFrame(loop);
 }
 
+// Initialize landing screen buttons
+function initLandingScreen() {
+  // Quick Play button
+  document.getElementById('quickPlayBtn')?.addEventListener('click', quickPlay);
+  
+  // Custom Game button
+  document.getElementById('customGameBtn')?.addEventListener('click', showSettings);
+  
+  // Back to landing button
+  const backBtn = document.getElementById('backToLanding');
+  if (backBtn) {
+    backBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      backToLanding();
+    });
+  }
+  
+  // Main menu button (game over screen)
+  document.getElementById('mainMenuBtn')?.addEventListener('click', returnToMainMenu);
+  
+  // How to Play modal
+  const howToPlayBtn = document.getElementById('howToPlayBtn');
+  const howToPlayModal = document.getElementById('howToPlayModal');
+  const closeHowToPlay = document.getElementById('closeHowToPlay');
+  const gotItBtn = document.getElementById('gotItBtn');
+  
+  howToPlayBtn?.addEventListener('click', () => {
+    howToPlayModal?.classList.remove('hidden');
+  });
+  
+  closeHowToPlay?.addEventListener('click', () => {
+    howToPlayModal?.classList.add('hidden');
+  });
+  
+  gotItBtn?.addEventListener('click', () => {
+    howToPlayModal?.classList.add('hidden');
+  });
+  
+  // Close modal on outside click
+  howToPlayModal?.addEventListener('click', (e) => {
+    if (e.target === howToPlayModal) {
+      howToPlayModal.classList.add('hidden');
+    }
+  });
+  
+  // Landing music toggle
+  const landingMusicToggle = document.getElementById('landingMusicToggle');
+  landingMusicToggle?.addEventListener('click', () => {
+    initAudioContext();
+    toggleMusic();
+    updateAllMusicToggles();
+  });
+}
+
 // Initialize music controls
 function initMusicControls() {
   const musicToggle = document.getElementById('musicToggle');
@@ -261,7 +429,7 @@ function initMusicControls() {
   if (musicToggle) {
     musicToggle.addEventListener('click', () => {
       toggleMusic();
-      updateMusicToggleUI();
+      updateAllMusicToggles();
     });
   }
   
@@ -272,11 +440,14 @@ function initMusicControls() {
   }
 }
 
-// Update music toggle button appearance
-function updateMusicToggleUI() {
+// Update all music toggle buttons appearance
+function updateAllMusicToggles() {
+  const playing = isMusicPlaying();
+  
+  // Game UI toggle
   const musicToggle = document.getElementById('musicToggle');
   if (musicToggle) {
-    if (isMusicPlaying()) {
+    if (playing) {
       musicToggle.classList.add('playing');
       musicToggle.textContent = '🎵';
     } else {
@@ -284,6 +455,24 @@ function updateMusicToggleUI() {
       musicToggle.textContent = '🔇';
     }
   }
+  
+  // Landing screen toggle
+  const landingToggle = document.getElementById('landingMusicToggle');
+  if (landingToggle) {
+    if (playing) {
+      landingToggle.classList.add('playing');
+      landingToggle.textContent = '🎵';
+    } else {
+      landingToggle.classList.remove('playing');
+      landingToggle.textContent = '🔇';
+    }
+  }
+}
+
+// Handle game over - show final score and save high score
+function handleGameOver() {
+  showFinalScore(score);
+  saveHighScore();
 }
 
 // Start when DOM is loaded

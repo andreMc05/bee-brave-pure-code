@@ -27,6 +27,7 @@ import { cells, hiveHoney, hexToPixel, cellExplosions } from './cells.js';
 import { bees, hunterBees, dropship, hunterExplosions, beeExplosions } from './bees.js';
 import { bullets, freezeBombs, electricBlasts } from './combat.js';
 import { userIcon, spawnIndicator, userExplosion, userTrail } from './user.js';
+import { particles, impactEffects } from './particles.js';
 
 // Threshold for parallax offset change to trigger redraw
 const PARALLAX_THRESHOLD = 5;
@@ -243,6 +244,8 @@ export function draw(gameOver, gameStarted, gameStartTime) {
   drawDropship();
   drawHunterBees();
   drawExplosions();
+  drawParticles();
+  drawImpactEffects();
   drawBullets();
   drawWeaponEffects();
   drawSpawnIndicator();
@@ -992,6 +995,292 @@ export function drawExplosions() {
     ctx.beginPath();
     ctx.arc(0, 0, radius * 0.8, 0, TWO_PI);
     ctx.stroke();
+    
+    ctx.restore();
+  });
+}
+
+// Draw particles (OPTIMIZED - visibility culling, batched by color)
+export function drawParticles() {
+  if (particles.length === 0) return;
+  
+  const TWO_PI = Math.PI * 2;
+  
+  // Group particles by color for batched rendering
+  const particlesByColor = new Map();
+  const glowParticles = [];
+  const trailParticles = [];
+  const debrisParticles = [];
+  
+  particles.forEach(p => {
+    // Visibility culling
+    if (!isVisible(p.x, p.y, p.size * 3)) return;
+    
+    const lifeProgress = p.lifetime / p.maxLifetime;
+    
+    // Separate special particles
+    if (p.trails && p.trail && p.trail.length > 0) {
+      trailParticles.push({ p, lifeProgress });
+    }
+    if (p.glow) {
+      glowParticles.push({ p, lifeProgress });
+    }
+    if (p.debris) {
+      debrisParticles.push({ p, lifeProgress });
+    }
+    
+    // Group regular particles by color
+    if (!particlesByColor.has(p.color)) {
+      particlesByColor.set(p.color, []);
+    }
+    particlesByColor.get(p.color).push({ p, lifeProgress });
+  });
+  
+  // Draw particle trails first (behind main particles)
+  trailParticles.forEach(({ p, lifeProgress }) => {
+    if (!p.trail) return;
+    
+    ctx.beginPath();
+    p.trail.forEach((point, idx) => {
+      const trailAlpha = point.alpha * lifeProgress * 0.4;
+      const trailSize = p.size * (1 - idx / p.trail.length) * 0.6;
+      if (trailAlpha > 0.05 && trailSize > 0.5) {
+        ctx.fillStyle = p.color.replace(')', `, ${trailAlpha})`).replace('rgb', 'rgba').replace('rgba(', 'rgba(');
+        // Handle hex colors
+        if (p.color.startsWith('#')) {
+          const r = parseInt(p.color.slice(1, 3), 16);
+          const g = parseInt(p.color.slice(3, 5), 16);
+          const b = parseInt(p.color.slice(5, 7), 16);
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${trailAlpha})`;
+        }
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, trailSize, 0, TWO_PI);
+        ctx.fill();
+      }
+    });
+  });
+  
+  // Draw glow effects (behind main particles)
+  glowParticles.forEach(({ p, lifeProgress }) => {
+    const glowAlpha = lifeProgress * 0.3;
+    const glowSize = p.size * 2.5;
+    
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    
+    // Parse hex color for glow
+    let r = 255, g = 200, b = 100;
+    if (p.color.startsWith('#')) {
+      r = parseInt(p.color.slice(1, 3), 16);
+      g = parseInt(p.color.slice(3, 5), 16);
+      b = parseInt(p.color.slice(5, 7), 16);
+    }
+    
+    const glowGradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize);
+    glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+    glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, glowSize, 0, TWO_PI);
+    ctx.fill();
+    
+    ctx.restore();
+  });
+  
+  // Draw debris particles (chunky rotating pieces)
+  debrisParticles.forEach(({ p, lifeProgress }) => {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation);
+    
+    const alpha = Math.min(1, lifeProgress * 1.5);
+    
+    // Parse hex color
+    let r = 200, g = 160, b = 50;
+    if (p.color.startsWith('#')) {
+      r = parseInt(p.color.slice(1, 3), 16);
+      g = parseInt(p.color.slice(3, 5), 16);
+      b = parseInt(p.color.slice(5, 7), 16);
+    }
+    
+    // Draw chunky hexagonal debris
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (TWO_PI * i / 6) - Math.PI / 6;
+      const x = Math.cos(angle) * p.size;
+      const y = Math.sin(angle) * p.size;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    // Add highlight edge
+    ctx.strokeStyle = `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 30)}, ${alpha * 0.5})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    ctx.restore();
+  });
+  
+  // Draw main particles batched by color
+  particlesByColor.forEach((particleList, color) => {
+    // Parse color for alpha modification
+    let r = 255, g = 200, b = 100;
+    if (color.startsWith('#')) {
+      r = parseInt(color.slice(1, 3), 16);
+      g = parseInt(color.slice(3, 5), 16);
+      b = parseInt(color.slice(5, 7), 16);
+    }
+    
+    particleList.forEach(({ p, lifeProgress }) => {
+      const alpha = Math.min(1, lifeProgress * 1.5);
+      
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, TWO_PI);
+      ctx.fill();
+      
+      // Add sparkle effect for sparkling particles
+      if (p.sparkle && lifeProgress > 0.3) {
+        const sparkleIntensity = Math.sin(Date.now() * 0.02 + p.x + p.y) * 0.5 + 0.5;
+        const sparkleAlpha = alpha * sparkleIntensity * 0.8;
+        const sparkleSize = p.size * 0.4;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${sparkleAlpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, sparkleSize, 0, TWO_PI);
+        ctx.fill();
+      }
+    });
+  });
+}
+
+// Draw impact effects (flashes, rings, bursts)
+export function drawImpactEffects() {
+  if (impactEffects.length === 0) return;
+  
+  const TWO_PI = Math.PI * 2;
+  
+  impactEffects.forEach(effect => {
+    // Visibility culling
+    if (!isVisible(effect.x, effect.y, effect.maxRadius)) return;
+    
+    const progress = 1 - (effect.duration / effect.maxDuration);
+    
+    // Parse color for RGBA
+    let r = 255, g = 255, b = 255;
+    if (effect.color.startsWith('#')) {
+      r = parseInt(effect.color.slice(1, 3), 16);
+      g = parseInt(effect.color.slice(3, 5), 16);
+      b = parseInt(effect.color.slice(5, 7), 16);
+    }
+    
+    ctx.save();
+    ctx.translate(effect.x, effect.y);
+    
+    if (effect.type === 'flash') {
+      // Simple flash - bright center that fades
+      const flashAlpha = effect.alpha * 0.9;
+      const innerRadius = effect.radius * 0.3;
+      
+      // Outer glow
+      const gradient = ctx.createRadialGradient(0, 0, innerRadius, 0, 0, effect.radius);
+      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${flashAlpha})`);
+      gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${flashAlpha * 0.5})`);
+      gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius, 0, TWO_PI);
+      ctx.fill();
+      
+      // Bright center
+      ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, innerRadius, 0, TWO_PI);
+      ctx.fill();
+      
+    } else if (effect.type === 'ring') {
+      // Expanding ring effect
+      const ringAlpha = effect.alpha * 0.8;
+      
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${ringAlpha})`;
+      ctx.lineWidth = effect.lineWidth * (1 + progress);
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius, 0, TWO_PI);
+      ctx.stroke();
+      
+      // Inner glow
+      const glowAlpha = effect.alpha * 0.4;
+      const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, effect.radius * 0.5);
+      innerGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowAlpha})`);
+      innerGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = innerGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius * 0.5, 0, TWO_PI);
+      ctx.fill();
+      
+    } else if (effect.type === 'burst') {
+      // Burst effect - multiple rays shooting out
+      const burstAlpha = effect.alpha * 0.85;
+      const rayCount = 8;
+      
+      // Central flash
+      const flashGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, effect.radius * 0.4);
+      flashGradient.addColorStop(0, `rgba(255, 255, 255, ${burstAlpha})`);
+      flashGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${burstAlpha * 0.6})`);
+      flashGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = flashGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius * 0.4, 0, TWO_PI);
+      ctx.fill();
+      
+      // Rays
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${burstAlpha * 0.7})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < rayCount; i++) {
+        const angle = (TWO_PI * i / rayCount) + progress * 0.3;
+        const innerDist = effect.radius * 0.2;
+        const outerDist = effect.radius * (0.5 + progress * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * innerDist, Math.sin(angle) * innerDist);
+        ctx.lineTo(Math.cos(angle) * outerDist, Math.sin(angle) * outerDist);
+        ctx.stroke();
+      }
+      
+      // Outer ring
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${burstAlpha * 0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius, 0, TWO_PI);
+      ctx.stroke();
+      
+    } else if (effect.type === 'splash') {
+      // Splash effect - like liquid droplets
+      const splashAlpha = effect.alpha * 0.8;
+      const dropletCount = 6;
+      
+      // Central splash
+      const splashGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, effect.radius * 0.5);
+      splashGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${splashAlpha})`);
+      splashGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = splashGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.radius * 0.5, 0, TWO_PI);
+      ctx.fill();
+      
+      // Droplets flying outward
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${splashAlpha * 0.7})`;
+      for (let i = 0; i < dropletCount; i++) {
+        const angle = (TWO_PI * i / dropletCount) + progress * 0.5;
+        const dist = effect.radius * (0.4 + progress * 0.6);
+        const dropletSize = 3 * (1 - progress * 0.5);
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, dropletSize, 0, TWO_PI);
+        ctx.fill();
+      }
+    }
     
     ctx.restore();
   });

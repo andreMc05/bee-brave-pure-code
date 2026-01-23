@@ -3,9 +3,22 @@
 // ========================================
 
 import { w, h, center, TRAIL_MAX_AGE, TRAIL_SPACING, triggerScreenShake } from './config.js';
-import { initAudioContext, isEngineRunning, startEngineSound, stopEngineSound, playExplosionSound } from './audio.js';
+import { 
+  initAudioContext, 
+  isEngineRunning, 
+  startEngineSound, 
+  stopEngineSound, 
+  playGameOverSound,
+  startLowHealthWarning,
+  stopLowHealthWarning
+} from './audio.js';
 import { bees } from './bees.js';
 import { shoot, useSpecialWeapon, cycleWeapon } from './combat.js';
+import { spawnExplosionParticles } from './particles.js';
+
+// Low health warning state
+const LOW_HEALTH_THRESHOLD = 30;
+let lowHealthWarningActive = false;
 
 // User state
 export let userIcon = null;
@@ -25,12 +38,14 @@ let shiftKeyPressed = false;
 let gameStartedRef = { value: false };
 let gameOverRef = { value: false };
 let restartGameFn = null;
+let onGameOverFn = null;
 
 // Set game state references
-export function setGameStateRefs(started, over, restartFn) {
+export function setGameStateRefs(started, over, restartFn, onGameOver = null) {
   gameStartedRef = started;
   gameOverRef = over;
   restartGameFn = restartFn;
+  onGameOverFn = onGameOver;
 }
 
 // Initialize input handlers
@@ -245,6 +260,8 @@ export function updateUser(dt, now) {
       userExplosion = null;
       if (!gameOverRef.value) {
         gameOverRef.value = true;
+        // Call game over callback (handles score display & high score)
+        if (onGameOverFn) onGameOverFn();
         document.getElementById('gameOver').classList.add('show');
       }
     }
@@ -309,6 +326,16 @@ export function updateUser(dt, now) {
     if (!takingDamage && userIcon.shield < userIcon.maxShield) {
       userIcon.shield = Math.min(userIcon.maxShield, userIcon.shield + dt * 0.02);
     }
+    
+    // Low health warning
+    const shouldWarn = userIcon.health <= LOW_HEALTH_THRESHOLD && userIcon.shield <= 0;
+    if (shouldWarn && !lowHealthWarningActive) {
+      startLowHealthWarning();
+      lowHealthWarningActive = true;
+    } else if (!shouldWarn && lowHealthWarningActive) {
+      stopLowHealthWarning();
+      lowHealthWarningActive = false;
+    }
   }
 }
 
@@ -316,10 +343,15 @@ export function updateUser(dt, now) {
 export function checkUserDeath() {
   if (userIcon && userIcon.health <= 0 && !gameOverRef.value && !userExplosion) {
     stopEngineSound();
-    playExplosionSound();
+    stopLowHealthWarning();
+    lowHealthWarningActive = false;
+    playGameOverSound();
     
     // Big screen shake on death
     triggerScreenShake(15, 500);
+    
+    // Spawn explosion particles
+    spawnExplosionParticles(userIcon.x, userIcon.y, 'user');
     
     userExplosion = {
       x: userIcon.x,
@@ -339,6 +371,8 @@ export function resetUser() {
   lastTrailX = null;
   lastTrailY = null;
   spawnIndicator = null;
+  stopLowHealthWarning();
+  lowHealthWarningActive = false;
   placeUserIcon();
 }
 

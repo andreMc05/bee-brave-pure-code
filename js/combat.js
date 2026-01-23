@@ -3,7 +3,15 @@
 // ========================================
 
 import { w, h, HEX_SIZE, HONEY_DAMAGE_PER_HIT, triggerScreenShake } from './config.js';
-import { playFireSound } from './audio.js';
+import { 
+  playFireSound, 
+  playFreezeSound, 
+  playElectricSound, 
+  playWarpSound,
+  playShieldHitSound,
+  playHealthHitSound,
+  playWeaponCycleSound
+} from './audio.js';
 import { 
   bees, 
   hunterBees, 
@@ -13,6 +21,7 @@ import {
   addDestroyedCells
 } from './bees.js';
 import { cells, getCellAtPoint, hexToPixel, isPointInHex, createCellExplosion } from './cells.js';
+import { spawnImpactParticles } from './particles.js';
 
 // Bullets array
 export let bullets = [];
@@ -78,6 +87,7 @@ export function useSpecialWeapon(userIcon, gameOver, gameStarted) {
       duration: 3000,
       maxDuration: 3000
     });
+    playFreezeSound();
   } else if (currentWeapon === 'electric') {
     electricBlasts.push({
       x: userIcon.x,
@@ -88,12 +98,14 @@ export function useSpecialWeapon(userIcon, gameOver, gameStarted) {
     });
     // Screen shake for electric blast
     triggerScreenShake(6, 200);
+    playElectricSound();
   } else if (currentWeapon === 'warp') {
     const warpDistance = 150;
     const newX = userIcon.x + Math.cos(userIcon.angle) * warpDistance;
     const newY = userIcon.y + Math.sin(userIcon.angle) * warpDistance;
     userIcon.x = Math.min(Math.max(newX, 0), w);
     userIcon.y = Math.min(Math.max(newY, 0), h);
+    playWarpSound();
   }
 }
 
@@ -101,6 +113,7 @@ export function useSpecialWeapon(userIcon, gameOver, gameStarted) {
 export function cycleWeapon() {
   currentWeaponIndex = (currentWeaponIndex + 1) % weaponTypes.length;
   updateWeaponUI();
+  playWeaponCycleSound();
 }
 
 // Update weapon UI
@@ -152,10 +165,14 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
           const hiveBulletDamage = 40;
           if (userIcon.shield > 0) {
             userIcon.shield = Math.max(0, userIcon.shield - hiveBulletDamage);
+            spawnImpactParticles(bullet.x, bullet.y, 'hiveShield', bullet.angle);
             triggerScreenShake(4, 150);
+            playShieldHitSound();
           } else {
             userIcon.health = Math.max(0, userIcon.health - hiveBulletDamage);
+            spawnImpactParticles(bullet.x, bullet.y, 'hiveHealth', bullet.angle);
             triggerScreenShake(8, 200);
+            playHealthHitSound();
           }
         }
         return false;
@@ -170,10 +187,14 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
         if (!isInvincible) {
           if (userIcon.shield > 0) {
             userIcon.shield = Math.max(0, userIcon.shield - bullet.damage);
+            spawnImpactParticles(bullet.x, bullet.y, 'laserShield', bullet.angle);
             triggerScreenShake(5, 150);
+            playShieldHitSound();
           } else {
             userIcon.health = Math.max(0, userIcon.health - bullet.damage);
+            spawnImpactParticles(bullet.x, bullet.y, 'laserHealth', bullet.angle);
             triggerScreenShake(10, 250);
+            playHealthHitSound();
           }
         }
         return false;
@@ -196,6 +217,8 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
           if (isPointInHex(bee.x, bee.y, cellCenter.x, cellCenter.y, cellSize)) {
             beesHit = true;
             bee.hp -= 1;
+            // Spawn impact particles at bee location
+            spawnImpactParticles(bee.x, bee.y, 'bulletBee', bullet.angle);
             if (bee.hp <= 0) {
               createBeeExplosion(bee.x, bee.y);
               bees.splice(i, 1);
@@ -206,6 +229,8 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
         
         // Damage cell if not protected
         if (!hiveProtected) {
+          // Spawn cell impact particles
+          spawnImpactParticles(bullet.x, bullet.y, 'bulletCell', bullet.angle);
           if (hitCell.honey > 0) {
             hitCell.honey = Math.max(0, hitCell.honey - HONEY_DAMAGE_PER_HIT);
           } else {
@@ -230,6 +255,8 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
         const dist = Math.hypot(bullet.x - bee.x, bullet.y - bee.y);
         if (dist < bullet.radius + 4) {
           bee.hp -= 1;
+          // Spawn impact particles
+          spawnImpactParticles(bullet.x, bullet.y, 'bulletBee', bullet.angle);
           if (bee.hp <= 0) {
             createBeeExplosion(bee.x, bee.y);
             bees.splice(i, 1);
@@ -246,8 +273,12 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
         if (dist < bullet.radius + hunter.size) {
           if (hunter.shield > 0) {
             hunter.shield = Math.max(0, hunter.shield - 15);
+            // Shield impact
+            spawnImpactParticles(bullet.x, bullet.y, 'bulletShield', bullet.angle);
           } else {
             hunter.hp -= 1;
+            // Armor impact
+            spawnImpactParticles(bullet.x, bullet.y, 'bulletArmor', bullet.angle);
             if (hunter.hp <= 0) {
               createHunterExplosion(hunter.x, hunter.y);
               hunterBees.splice(i, 1);
