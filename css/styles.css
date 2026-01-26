@@ -973,3 +973,308 @@ canvas { display: block; }
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
+/* ========================================
+   Mobile Touch Controls
+   ======================================== */
+
+/* Prevent text selection and touch callouts on mobile */
+.touch-controls,
+.touch-controls * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Canvas touch handling */
+#c {
+  touch-action: none;
+}
+
+.touch-controls {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.touch-controls.hidden {
+  display: none;
+}
+
+/* Joystick Zone - Left Side */
+.joystick-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  height: 50%;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-base {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 0 30px rgba(0, 0, 0, 0.3),
+    inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.joystick-thumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255, 200, 100, 0.9) 0%, rgba(255, 179, 0, 0.8) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 4px 15px rgba(255, 179, 0, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.05s ease-out;
+  position: absolute;
+}
+
+.joystick-thumb.active {
+  background: linear-gradient(145deg, rgba(255, 220, 130, 1) 0%, rgba(255, 200, 50, 0.95) 100%);
+  box-shadow: 
+    0 4px 20px rgba(255, 179, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Touch Buttons - Right Side */
+.touch-buttons {
+  position: absolute;
+  right: 20px;
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  pointer-events: auto;
+}
+
+.touch-btn {
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-btn:active {
+  transform: scale(0.95);
+}
+
+/* Fire Button - Large */
+.fire-btn {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(145deg, rgba(255, 80, 80, 0.9) 0%, rgba(200, 40, 40, 0.85) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 6px 25px rgba(255, 80, 80, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+.fire-btn:active {
+  background: linear-gradient(145deg, rgba(255, 100, 100, 1) 0%, rgba(220, 60, 60, 0.95) 100%);
+  box-shadow: 
+    0 2px 15px rgba(255, 80, 80, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.fire-btn .btn-inner {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.05em;
+}
+
+/* Secondary Buttons Row */
+.secondary-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* Special Weapon Button */
+.special-btn {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(145deg, rgba(100, 180, 255, 0.9) 0%, rgba(60, 130, 200, 0.85) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 4px 20px rgba(100, 180, 255, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+.special-btn:active {
+  background: linear-gradient(145deg, rgba(120, 200, 255, 1) 0%, rgba(80, 150, 220, 0.95) 100%);
+  box-shadow: 
+    0 2px 12px rgba(100, 180, 255, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.special-btn .btn-inner {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Cycle Weapon Button */
+.cycle-btn {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(145deg, rgba(180, 130, 255, 0.9) 0%, rgba(130, 80, 200, 0.85) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 4px 20px rgba(180, 130, 255, 0.4),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+.cycle-btn:active {
+  background: linear-gradient(145deg, rgba(200, 150, 255, 1) 0%, rgba(150, 100, 220, 0.95) 100%);
+  box-shadow: 
+    0 2px 12px rgba(180, 130, 255, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.cycle-btn .btn-inner {
+  font-size: 22px;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Mobile-specific UI adjustments */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  /* Show touch controls on mobile/touch devices */
+  .touch-controls.mobile-enabled {
+    display: block;
+  }
+  
+  /* Adjust game UI for mobile */
+  #ui {
+    padding: 8px 12px;
+    gap: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  
+  #ui h1 {
+    font-size: 14px;
+  }
+  
+  .score-display {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 8px;
+  }
+  
+  .bar-container {
+    min-width: 80px;
+  }
+  
+  .bar-bg {
+    height: 12px;
+  }
+  
+  .bar-label {
+    font-size: 9px;
+  }
+  
+  /* Simplify health/shield on very small screens */
+  .health-shield-container {
+    gap: 10px;
+  }
+  
+  /* Smaller weapon cards on mobile */
+  .weapons-section {
+    padding-left: 12px;
+  }
+  
+  .weapon-card {
+    padding: 4px 6px;
+    min-width: 44px;
+  }
+  
+  .weapon-icon {
+    font-size: 14px;
+  }
+  
+  .weapon-name {
+    font-size: 7px;
+  }
+  
+  .weapon-count {
+    font-size: 14px;
+  }
+  
+  /* Music controls smaller */
+  .music-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .music-slider {
+    width: 50px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .joystick-zone {
+    height: 70%;
+  }
+  
+  .joystick-base {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .joystick-thumb {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .touch-buttons {
+    bottom: 15px;
+    right: 15px;
+    gap: 10px;
+  }
+  
+  .fire-btn {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .special-btn,
+  .cycle-btn {
+    width: 48px;
+    height: 48px;
+  }
+  
+  #ui {
+    padding: 6px 10px;
+    gap: 10px;
+  }
+}
+

@@ -27,11 +27,11 @@
 - [ ] Add more weapon types
 - [ ] Implement weapon upgrades
 - [ ] Add ammo/cooldown system refinements
-- [ ] Create visual effects for weapon impacts
+- [x] Create visual effects for weapon impacts
 
 ## 🎨 Visual Improvements
 
-- [ ] Add particle effects for explosions
+- [x] Add particle effects for explosions
 - [x] Improve bee animations
 - [x] Add background parallax layers
 - [ ] Create day/night cycle
@@ -40,7 +40,7 @@
 ## 🔊 Audio
 
 - [x] Add background music
-- [ ] Improve sound effect variety
+- [x] Improve sound effect variety
 - [ ] Add volume controls in settings
 - [ ] Implement mute toggle
 
@@ -48,9 +48,47 @@
 
 - [ ] Add pause menu
 - [ ] Create tutorial/instructions screen
-- [ ] Add mobile touch controls
+- [x] Add mobile touch controls
 - [x] Improve settings panel layout
 - [ ] Add game statistics screen
+- [x] Add high score tracking
+- [x] Landing screen /w background image
+- [x] Add how to play screen
+
+## 📱 Mobile Support
+
+### Touch Controls
+- [x] Virtual joystick for movement (left side)
+- [x] Fire button (right side, large tap target)
+- [x] Special weapon button
+- [x] Cycle weapon button
+- [x] Multi-touch support (move + shoot simultaneously)
+
+### Touch Event Handling
+- [x] Add touchstart/touchmove/touchend/touchcancel handlers
+- [x] Map touch positions to joystick direction
+- [x] Prevent default scroll/zoom behaviors
+- [x] Add touch-action: none to canvas
+
+### Viewport & CSS
+- [x] Update viewport meta (user-scalable=no, maximum-scale=1.0)
+- [x] Add user-select: none to prevent text selection
+- [x] Add -webkit-touch-callout: none
+- [x] Ensure 44px minimum tap targets
+- [x] Responsive UI layout for small screens
+- [x] Hide/reposition HUD elements for mobile
+
+### Performance (Mobile)
+- [ ] Reduce particle counts on mobile devices
+- [ ] Lower parallax layer density
+- [ ] Handle devicePixelRatio for retina displays
+- [ ] Throttle rendering if needed
+
+### Orientation & Focus
+- [ ] Lock to landscape or adapt UI for portrait
+- [ ] Handle orientation change events
+- [ ] Pause game on visibilitychange (app loses focus)
+- [ ] Resume gracefully when returning
 
 ## 🐛 Bug Fixes
 

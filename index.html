@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Bee Brave - Galactic Battle for Resources</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preload" href="assets/images/Gemini_Generated_Image_cevjaacevjaacevj.png" as="image">
 </head>
@@ -299,6 +299,31 @@
 
   <!-- Game Canvas -->
   <canvas id="c"></canvas>
+
+  <!-- Mobile Touch Controls -->
+  <div id="touchControls" class="touch-controls hidden">
+    <!-- Virtual Joystick (left side) -->
+    <div id="joystickZone" class="joystick-zone">
+      <div id="joystickBase" class="joystick-base">
+        <div id="joystickThumb" class="joystick-thumb"></div>
+      </div>
+    </div>
+    
+    <!-- Action Buttons (right side) -->
+    <div class="touch-buttons">
+      <button id="touchFire" class="touch-btn fire-btn">
+        <span class="btn-inner">FIRE</span>
+      </button>
+      <div class="secondary-buttons">
+        <button id="touchSpecial" class="touch-btn special-btn">
+          <span class="btn-inner">V</span>
+        </button>
+        <button id="touchCycle" class="touch-btn cycle-btn">
+          <span class="btn-inner">⟳</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Game Over Screen -->
   <div id="gameOver">

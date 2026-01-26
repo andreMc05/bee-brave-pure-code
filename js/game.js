@@ -42,11 +42,13 @@ import {
   resetUser, 
   placeUserIcon,
   initInput,
-  setGameStateRefs
+  setGameStateRefs,
+  getUserIcon
 } from './user.js';
 import { draw } from './draw.js';
 import { initUI, updateGameUI, setGameFunctions, resetUICache, showFinalScore } from './ui.js';
 import { updateParticles, resetParticles } from './particles.js';
+import { initTouchControls, setTouchGameRefs, resetTouchInput } from './touch.js';
 
 // Game state
 let gameOver = false;
@@ -200,6 +202,7 @@ function returnToMainMenu() {
   resetBees();
   resetUser();
   resetParticles();
+  resetTouchInput();
   cells.length = 0;
   resetResourceSpots();
   
@@ -299,6 +302,9 @@ function restartGame() {
   // Reset particles
   resetParticles();
   
+  // Reset touch input
+  resetTouchInput();
+  
   // Reset hive
   resetCells();
 }
@@ -321,6 +327,7 @@ function returnToSettings() {
   resetBees();
   resetUser();
   resetParticles();
+  resetTouchInput();
   cells.length = 0;
   resetResourceSpots();
   
@@ -361,6 +368,10 @@ function initGame() {
   
   // Initialize input handlers
   initInput();
+  
+  // Initialize touch controls for mobile
+  initTouchControls();
+  setTouchGameRefs(gameStartedRef, gameOverRef, getUserIcon);
   
   // Start game loop
   requestAnimationFrame(loop);

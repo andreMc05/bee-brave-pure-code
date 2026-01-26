@@ -14,6 +14,7 @@ import {
 } from './audio.js';
 import { bees } from './bees.js';
 import { shoot, useSpecialWeapon, cycleWeapon } from './combat.js';
+import { touchInput } from './touch.js';
 import { spawnExplosionParticles } from './particles.js';
 
 // Low health warning state
@@ -153,6 +154,7 @@ export function moveUserIcon(dt) {
   const step = userIcon.speed * dt * 0.06;
   let dx = 0, dy = 0;
   
+  // Keyboard input
   if (keys['w'] || keys['arrowup']) {
     userIcon.y -= step;
     dy -= 1;
@@ -168,6 +170,21 @@ export function moveUserIcon(dt) {
   if (keys['d'] || keys['arrowright']) {
     userIcon.x += step;
     dx += 1;
+  }
+  
+  // Touch joystick input (additive with keyboard)
+  if (touchInput.moveX !== 0 || touchInput.moveY !== 0) {
+    // Apply dead zone (ignore very small inputs)
+    const deadZone = 0.15;
+    const touchMoveX = Math.abs(touchInput.moveX) > deadZone ? touchInput.moveX : 0;
+    const touchMoveY = Math.abs(touchInput.moveY) > deadZone ? touchInput.moveY : 0;
+    
+    if (touchMoveX !== 0 || touchMoveY !== 0) {
+      userIcon.x += touchMoveX * step;
+      userIcon.y += touchMoveY * step;
+      dx += touchMoveX;
+      dy += touchMoveY;
+    }
   }
 
   // Track movement for stationary detection
