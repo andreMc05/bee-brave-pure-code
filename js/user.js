@@ -13,7 +13,7 @@ import {
   stopLowHealthWarning
 } from './audio.js';
 import { bees } from './bees.js';
-import { shoot, useSpecialWeapon, cycleWeapon } from './combat.js';
+import { shoot, useSpecialWeapon, cycleWeapon, useHeavyWeapon, useDefensiveWeapon, isUserShielded } from './combat.js';
 import { touchInput } from './touch.js';
 import { spawnExplosionParticles } from './particles.js';
 
@@ -34,6 +34,8 @@ const keys = {};
 let spacePressed = false;
 let vKeyPressed = false;
 let shiftKeyPressed = false;
+let bKeyPressed = false;
+let cKeyPressed = false;
 
 // Game state references (set by game.js)
 let gameStartedRef = { value: false };
@@ -80,6 +82,20 @@ export function initInput() {
         cycleWeapon();
       }
     }
+    if (e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      if (!bKeyPressed) {
+        bKeyPressed = true;
+        useHeavyWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+      }
+    }
+    if (e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      if (!cKeyPressed) {
+        cKeyPressed = true;
+        useDefensiveWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+      }
+    }
   });
 
   window.addEventListener('keyup', (e) => {
@@ -97,6 +113,12 @@ export function initInput() {
     }
     if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
       shiftKeyPressed = false;
+    }
+    if (e.key.toLowerCase() === 'b') {
+      bKeyPressed = false;
+    }
+    if (e.key.toLowerCase() === 'c') {
+      cKeyPressed = false;
     }
   });
 
@@ -293,7 +315,10 @@ export function updateUser(dt, now) {
       const dist = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
       const beeRadius = 4;
       if (dist < beeRadius + userIcon.radius + 2) {
-        if (!isInvincible) {
+        // Check for ablative shield (complete protection)
+        const hasAblativeShield = isUserShielded();
+        
+        if (!isInvincible && !hasAblativeShield) {
           takingDamage = true;
           let damageMultiplier = 1.0;
           if (bee.state === 'hunt') {
@@ -322,6 +347,18 @@ export function updateUser(dt, now) {
             userIcon.health = Math.max(0, userIcon.health - dt * 0.15 * damageMultiplier);
             // Stronger shake when taking health damage
             if (Math.random() < 0.15) triggerScreenShake(4, 100);
+          }
+        } else if (hasAblativeShield) {
+          // Ablative shield repels bees strongly
+          const repelDistance = 25;
+          const repelDx = bee.x - userIcon.x;
+          const repelDy = bee.y - userIcon.y;
+          const repelDist = Math.hypot(repelDx, repelDy);
+          if (repelDist > 0) {
+            const repelDirX = repelDx / repelDist;
+            const repelDirY = repelDy / repelDist;
+            bee.x = userIcon.x + repelDirX * (userIcon.radius + beeRadius + repelDistance);
+            bee.y = userIcon.y + repelDirY * (userIcon.radius + beeRadius + repelDistance);
           }
         } else {
           // Repel when invincible

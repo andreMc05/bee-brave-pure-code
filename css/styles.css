@@ -613,6 +613,130 @@ body {
   border: 2px solid rgba(0, 0, 0, 0.8);
   box-shadow: 0 0 8px rgba(255, 179, 0, 0.8);
 }
+
+/* Heavy Weapons Section */
+.heavy-weapons-section {
+  margin-top: 8px;
+  border-top: 1px solid rgba(150, 100, 200, 0.3);
+  padding-top: 8px;
+}
+.heavy-weapons-section .weapons-title {
+  color: rgba(200, 150, 255, 0.9);
+}
+.heavy-weapon-slot {
+  background: rgba(150, 100, 200, 0.15);
+  border: 2px solid rgba(150, 100, 200, 0.4);
+  border-radius: 10px;
+  padding: 10px 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.heavy-weapon-slot:not(.empty) {
+  background: rgba(150, 100, 200, 0.25);
+  border-color: rgba(180, 130, 230, 0.6);
+  box-shadow: 0 0 15px rgba(150, 100, 200, 0.3);
+  animation: heavyWeaponPulse 2s ease-in-out infinite;
+}
+@keyframes heavyWeaponPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(150, 100, 200, 0.3); }
+  50% { box-shadow: 0 0 25px rgba(180, 130, 255, 0.5); }
+}
+.heavy-weapon-slot.empty {
+  opacity: 0.6;
+}
+.heavy-weapon-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 8px rgba(200, 150, 255, 0.5));
+}
+.heavy-weapon-slot.empty .heavy-weapon-icon {
+  filter: none;
+  opacity: 0.4;
+}
+.heavy-weapon-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #d0b0ff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.heavy-weapon-slot.empty .heavy-weapon-name {
+  color: rgba(200, 150, 255, 0.5);
+}
+.heavy-weapon-empty {
+  font-size: 8px;
+  color: rgba(200, 150, 255, 0.6);
+  margin-top: 4px;
+  font-style: italic;
+}
+.key-hint {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 5px;
+  font-weight: normal;
+  vertical-align: middle;
+}
+
+/* Defensive Weapons Section */
+.defensive-weapons-section {
+  margin-top: 8px;
+  border-top: 1px solid rgba(100, 200, 180, 0.3);
+  padding-top: 8px;
+}
+.defensive-weapons-section .weapons-title {
+  color: rgba(150, 220, 200, 0.9);
+}
+.defensive-weapon-slot {
+  background: rgba(100, 200, 180, 0.15);
+  border: 2px solid rgba(100, 200, 180, 0.4);
+  border-radius: 10px;
+  padding: 10px 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.defensive-weapon-slot:not(.empty) {
+  background: rgba(100, 200, 180, 0.25);
+  border-color: rgba(130, 220, 200, 0.6);
+  box-shadow: 0 0 15px rgba(100, 200, 180, 0.3);
+  animation: defensiveWeaponPulse 2s ease-in-out infinite;
+}
+@keyframes defensiveWeaponPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(100, 200, 180, 0.3); }
+  50% { box-shadow: 0 0 25px rgba(130, 230, 210, 0.5); }
+}
+.defensive-weapon-slot.empty {
+  opacity: 0.6;
+}
+.defensive-weapon-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 8px rgba(150, 220, 200, 0.5));
+}
+.defensive-weapon-slot.empty .defensive-weapon-icon {
+  filter: none;
+  opacity: 0.4;
+}
+.defensive-weapon-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a0e0d0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.defensive-weapon-slot.empty .defensive-weapon-name {
+  color: rgba(150, 220, 200, 0.5);
+}
+.defensive-weapon-empty {
+  font-size: 8px;
+  color: rgba(150, 220, 200, 0.6);
+  margin-top: 4px;
+  font-style: italic;
+}
+
 #legend {
   font-size: 10px;
   display: flex;

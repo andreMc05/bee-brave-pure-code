@@ -1176,3 +1176,554 @@ export function playWeaponCycleSound() {
     clickOsc.stop(now + 0.05);
   });
 }
+
+// ========================================
+// HEAVY WEAPON SOUNDS
+// ========================================
+
+// Singularity - deep bass vortex with whooshing suction
+export function playSingularitySound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 1.5;
+    
+    // Deep bass rumble (the vortex)
+    const bassOsc = audioContext.createOscillator();
+    bassOsc.type = 'sawtooth';
+    bassOsc.frequency.setValueAtTime(30, now);
+    bassOsc.frequency.linearRampToValueAtTime(80, now + 0.3);
+    bassOsc.frequency.linearRampToValueAtTime(40, now + duration);
+    
+    const bassGain = audioContext.createGain();
+    bassGain.gain.setValueAtTime(0, now);
+    bassGain.gain.linearRampToValueAtTime(volumes.special * 0.8, now + 0.1);
+    bassGain.gain.setValueAtTime(volumes.special * 0.6, now + 0.5);
+    bassGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const bassFilter = audioContext.createBiquadFilter();
+    bassFilter.type = 'lowpass';
+    bassFilter.frequency.value = 150;
+    bassFilter.Q.value = 2;
+    
+    // Whooshing suction sound (leaf blower effect)
+    const whooshBuffer = createNoiseBuffer(duration, 0.8);
+    const whooshSource = audioContext.createBufferSource();
+    whooshSource.buffer = whooshBuffer;
+    
+    const whooshGain = audioContext.createGain();
+    whooshGain.gain.setValueAtTime(0, now);
+    whooshGain.gain.linearRampToValueAtTime(volumes.special * 0.5, now + 0.2);
+    whooshGain.gain.setValueAtTime(volumes.special * 0.4, now + 0.8);
+    whooshGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const whooshFilter = audioContext.createBiquadFilter();
+    whooshFilter.type = 'bandpass';
+    whooshFilter.frequency.setValueAtTime(800, now);
+    whooshFilter.frequency.linearRampToValueAtTime(400, now + duration);
+    whooshFilter.Q.value = 3;
+    
+    // Swirling tone (rotating vortex)
+    const swirlOsc = audioContext.createOscillator();
+    swirlOsc.type = 'sine';
+    swirlOsc.frequency.setValueAtTime(200, now);
+    
+    // Modulate for swirl effect
+    const swirlLfo = audioContext.createOscillator();
+    swirlLfo.type = 'sine';
+    swirlLfo.frequency.value = 8;
+    
+    const swirlLfoGain = audioContext.createGain();
+    swirlLfoGain.gain.value = 100;
+    
+    swirlLfo.connect(swirlLfoGain);
+    swirlLfoGain.connect(swirlOsc.frequency);
+    
+    const swirlGain = audioContext.createGain();
+    swirlGain.gain.setValueAtTime(0, now);
+    swirlGain.gain.linearRampToValueAtTime(volumes.special * 0.3, now + 0.2);
+    swirlGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    // Initial boom
+    const boomOsc = audioContext.createOscillator();
+    boomOsc.type = 'sine';
+    boomOsc.frequency.setValueAtTime(100, now);
+    boomOsc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+    
+    const boomGain = audioContext.createGain();
+    boomGain.gain.setValueAtTime(0, now);
+    boomGain.gain.linearRampToValueAtTime(volumes.special * 0.9, now + 0.02);
+    boomGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    
+    // Connect all
+    bassOsc.connect(bassFilter);
+    bassFilter.connect(bassGain);
+    bassGain.connect(audioContext.destination);
+    
+    whooshSource.connect(whooshFilter);
+    whooshFilter.connect(whooshGain);
+    whooshGain.connect(audioContext.destination);
+    
+    swirlOsc.connect(swirlGain);
+    swirlGain.connect(audioContext.destination);
+    
+    boomOsc.connect(boomGain);
+    boomGain.connect(audioContext.destination);
+    
+    // Start all
+    bassOsc.start(now);
+    bassOsc.stop(now + duration);
+    whooshSource.start(now);
+    whooshSource.stop(now + duration);
+    swirlOsc.start(now);
+    swirlOsc.stop(now + duration);
+    swirlLfo.start(now);
+    swirlLfo.stop(now + duration);
+    boomOsc.start(now);
+    boomOsc.stop(now + 0.4);
+  });
+}
+
+// Railgun - high energy charge then piercing beam
+export function playRailgunSound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 0.8;
+    
+    // Charge up whine
+    const chargeOsc = audioContext.createOscillator();
+    chargeOsc.type = 'sawtooth';
+    chargeOsc.frequency.setValueAtTime(200, now);
+    chargeOsc.frequency.exponentialRampToValueAtTime(2000, now + 0.15);
+    
+    const chargeGain = audioContext.createGain();
+    chargeGain.gain.setValueAtTime(0, now);
+    chargeGain.gain.linearRampToValueAtTime(volumes.special * 0.4, now + 0.1);
+    chargeGain.gain.linearRampToValueAtTime(volumes.special * 0.6, now + 0.15);
+    chargeGain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+    
+    // Main beam blast
+    const beamOsc = audioContext.createOscillator();
+    beamOsc.type = 'square';
+    beamOsc.frequency.setValueAtTime(150, now + 0.15);
+    beamOsc.frequency.exponentialRampToValueAtTime(50, now + duration);
+    
+    const beamGain = audioContext.createGain();
+    beamGain.gain.setValueAtTime(0, now);
+    beamGain.gain.setValueAtTime(0, now + 0.14);
+    beamGain.gain.linearRampToValueAtTime(volumes.special * 0.9, now + 0.16);
+    beamGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const beamFilter = audioContext.createBiquadFilter();
+    beamFilter.type = 'lowpass';
+    beamFilter.frequency.value = 300;
+    beamFilter.Q.value = 1;
+    
+    // High frequency crack
+    const crackOsc = audioContext.createOscillator();
+    crackOsc.type = 'sawtooth';
+    crackOsc.frequency.setValueAtTime(4000, now + 0.15);
+    crackOsc.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+    
+    const crackGain = audioContext.createGain();
+    crackGain.gain.setValueAtTime(0, now);
+    crackGain.gain.setValueAtTime(0, now + 0.14);
+    crackGain.gain.linearRampToValueAtTime(volumes.special * 0.5, now + 0.16);
+    crackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    
+    // Sizzle noise (energy discharge)
+    const sizzleBuffer = createNoiseBuffer(duration, 0.6);
+    const sizzleSource = audioContext.createBufferSource();
+    sizzleSource.buffer = sizzleBuffer;
+    
+    const sizzleGain = audioContext.createGain();
+    sizzleGain.gain.setValueAtTime(0, now);
+    sizzleGain.gain.setValueAtTime(0, now + 0.14);
+    sizzleGain.gain.linearRampToValueAtTime(volumes.special * 0.4, now + 0.17);
+    sizzleGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    
+    const sizzleFilter = audioContext.createBiquadFilter();
+    sizzleFilter.type = 'highpass';
+    sizzleFilter.frequency.value = 2000;
+    
+    // Connect all
+    chargeOsc.connect(chargeGain);
+    chargeGain.connect(audioContext.destination);
+    
+    beamOsc.connect(beamFilter);
+    beamFilter.connect(beamGain);
+    beamGain.connect(audioContext.destination);
+    
+    crackOsc.connect(crackGain);
+    crackGain.connect(audioContext.destination);
+    
+    sizzleSource.connect(sizzleFilter);
+    sizzleFilter.connect(sizzleGain);
+    sizzleGain.connect(audioContext.destination);
+    
+    // Start all
+    chargeOsc.start(now);
+    chargeOsc.stop(now + 0.2);
+    beamOsc.start(now + 0.15);
+    beamOsc.stop(now + duration);
+    crackOsc.start(now + 0.15);
+    crackOsc.stop(now + 0.4);
+    sizzleSource.start(now + 0.15);
+    sizzleSource.stop(now + 0.5);
+  });
+}
+
+// ========================================
+// DEFENSIVE WEAPON SOUNDS
+// ========================================
+
+// Ablative Shield - energy bubble forming
+export function playAblativeShieldSound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 0.8;
+    
+    // Rising shimmer (shield forming)
+    const shimmerOsc = audioContext.createOscillator();
+    shimmerOsc.type = 'sine';
+    shimmerOsc.frequency.setValueAtTime(400, now);
+    shimmerOsc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
+    shimmerOsc.frequency.setValueAtTime(800, now + 0.5);
+    
+    const shimmerGain = audioContext.createGain();
+    shimmerGain.gain.setValueAtTime(0, now);
+    shimmerGain.gain.linearRampToValueAtTime(volumes.special * 0.4, now + 0.1);
+    shimmerGain.gain.setValueAtTime(volumes.special * 0.3, now + 0.4);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    // Harmonic overtones (golden shimmer)
+    const harmOsc = audioContext.createOscillator();
+    harmOsc.type = 'triangle';
+    harmOsc.frequency.setValueAtTime(800, now);
+    harmOsc.frequency.exponentialRampToValueAtTime(2400, now + 0.3);
+    
+    const harmGain = audioContext.createGain();
+    harmGain.gain.setValueAtTime(0, now);
+    harmGain.gain.linearRampToValueAtTime(volumes.special * 0.2, now + 0.15);
+    harmGain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    
+    // Low energy hum
+    const humOsc = audioContext.createOscillator();
+    humOsc.type = 'sawtooth';
+    humOsc.frequency.value = 80;
+    
+    const humGain = audioContext.createGain();
+    humGain.gain.setValueAtTime(0, now);
+    humGain.gain.linearRampToValueAtTime(volumes.special * 0.25, now + 0.2);
+    humGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const humFilter = audioContext.createBiquadFilter();
+    humFilter.type = 'lowpass';
+    humFilter.frequency.value = 200;
+    
+    // Activation ping
+    const pingOsc = audioContext.createOscillator();
+    pingOsc.type = 'sine';
+    pingOsc.frequency.setValueAtTime(1500, now);
+    pingOsc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+    
+    const pingGain = audioContext.createGain();
+    pingGain.gain.setValueAtTime(0, now);
+    pingGain.gain.linearRampToValueAtTime(volumes.special * 0.5, now + 0.01);
+    pingGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    
+    // Connect
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(audioContext.destination);
+    
+    harmOsc.connect(harmGain);
+    harmGain.connect(audioContext.destination);
+    
+    humOsc.connect(humFilter);
+    humFilter.connect(humGain);
+    humGain.connect(audioContext.destination);
+    
+    pingOsc.connect(pingGain);
+    pingGain.connect(audioContext.destination);
+    
+    // Start
+    shimmerOsc.start(now);
+    shimmerOsc.stop(now + duration);
+    harmOsc.start(now);
+    harmOsc.stop(now + 0.5);
+    humOsc.start(now);
+    humOsc.stop(now + duration);
+    pingOsc.start(now);
+    pingOsc.stop(now + 0.25);
+  });
+}
+
+// Counter-Missiles - missile launch salvo
+export function playCounterMissilesSound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 0.6;
+    
+    // Multiple missile launches (staggered)
+    for (let i = 0; i < 4; i++) {
+      const delay = i * 0.08;
+      
+      // Whoosh up
+      const whooshOsc = audioContext.createOscillator();
+      whooshOsc.type = 'sawtooth';
+      whooshOsc.frequency.setValueAtTime(200 + i * 50, now + delay);
+      whooshOsc.frequency.exponentialRampToValueAtTime(800 + i * 100, now + delay + 0.15);
+      
+      const whooshGain = audioContext.createGain();
+      whooshGain.gain.setValueAtTime(0, now + delay);
+      whooshGain.gain.linearRampToValueAtTime(volumes.special * 0.3, now + delay + 0.02);
+      whooshGain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.2);
+      
+      const whooshFilter = audioContext.createBiquadFilter();
+      whooshFilter.type = 'bandpass';
+      whooshFilter.frequency.value = 600;
+      whooshFilter.Q.value = 2;
+      
+      whooshOsc.connect(whooshFilter);
+      whooshFilter.connect(whooshGain);
+      whooshGain.connect(audioContext.destination);
+      
+      whooshOsc.start(now + delay);
+      whooshOsc.stop(now + delay + 0.2);
+    }
+    
+    // Launch thump
+    const thumpOsc = audioContext.createOscillator();
+    thumpOsc.type = 'sine';
+    thumpOsc.frequency.setValueAtTime(100, now);
+    thumpOsc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+    
+    const thumpGain = audioContext.createGain();
+    thumpGain.gain.setValueAtTime(0, now);
+    thumpGain.gain.linearRampToValueAtTime(volumes.special * 0.6, now + 0.02);
+    thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    
+    // Hiss (rocket exhaust)
+    const hissBuffer = createNoiseBuffer(duration, 0.5);
+    const hissSource = audioContext.createBufferSource();
+    hissSource.buffer = hissBuffer;
+    
+    const hissGain = audioContext.createGain();
+    hissGain.gain.setValueAtTime(0, now);
+    hissGain.gain.linearRampToValueAtTime(volumes.special * 0.35, now + 0.05);
+    hissGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const hissFilter = audioContext.createBiquadFilter();
+    hissFilter.type = 'highpass';
+    hissFilter.frequency.value = 2000;
+    
+    // Connect
+    thumpOsc.connect(thumpGain);
+    thumpGain.connect(audioContext.destination);
+    
+    hissSource.connect(hissFilter);
+    hissFilter.connect(hissGain);
+    hissGain.connect(audioContext.destination);
+    
+    // Start
+    thumpOsc.start(now);
+    thumpOsc.stop(now + 0.2);
+    hissSource.start(now);
+    hissSource.stop(now + duration);
+  });
+}
+
+// Cloak - phase shift into invisibility
+export function playCloakSound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 0.7;
+    
+    // Descending phase shift
+    const phaseOsc = audioContext.createOscillator();
+    phaseOsc.type = 'sine';
+    phaseOsc.frequency.setValueAtTime(800, now);
+    phaseOsc.frequency.exponentialRampToValueAtTime(100, now + duration);
+    
+    const phaseGain = audioContext.createGain();
+    phaseGain.gain.setValueAtTime(0, now);
+    phaseGain.gain.linearRampToValueAtTime(volumes.special * 0.4, now + 0.05);
+    phaseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    // Shimmer effect (fading out of existence)
+    const shimmerOsc = audioContext.createOscillator();
+    shimmerOsc.type = 'triangle';
+    shimmerOsc.frequency.setValueAtTime(2000, now);
+    shimmerOsc.frequency.exponentialRampToValueAtTime(500, now + duration);
+    
+    // Tremolo for shimmer
+    const tremoloOsc = audioContext.createOscillator();
+    tremoloOsc.type = 'sine';
+    tremoloOsc.frequency.value = 15;
+    
+    const tremoloGain = audioContext.createGain();
+    tremoloGain.gain.value = 0.5;
+    
+    const shimmerGain = audioContext.createGain();
+    shimmerGain.gain.setValueAtTime(0, now);
+    shimmerGain.gain.linearRampToValueAtTime(volumes.special * 0.2, now + 0.1);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    tremoloOsc.connect(tremoloGain);
+    tremoloGain.connect(shimmerGain.gain);
+    
+    // Whoosh down (disappearing)
+    const whooshBuffer = createNoiseBuffer(duration, 0.4);
+    const whooshSource = audioContext.createBufferSource();
+    whooshSource.buffer = whooshBuffer;
+    
+    const whooshGain = audioContext.createGain();
+    whooshGain.gain.setValueAtTime(0, now);
+    whooshGain.gain.linearRampToValueAtTime(volumes.special * 0.3, now + 0.1);
+    whooshGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    const whooshFilter = audioContext.createBiquadFilter();
+    whooshFilter.type = 'bandpass';
+    whooshFilter.frequency.setValueAtTime(1500, now);
+    whooshFilter.frequency.exponentialRampToValueAtTime(200, now + duration);
+    whooshFilter.Q.value = 3;
+    
+    // "Thermostat click" at the end
+    const clickOsc = audioContext.createOscillator();
+    clickOsc.type = 'square';
+    clickOsc.frequency.value = 100;
+    
+    const clickGain = audioContext.createGain();
+    clickGain.gain.setValueAtTime(0, now + duration - 0.1);
+    clickGain.gain.linearRampToValueAtTime(volumes.special * 0.3, now + duration - 0.08);
+    clickGain.gain.linearRampToValueAtTime(0.01, now + duration - 0.02);
+    
+    // Connect
+    phaseOsc.connect(phaseGain);
+    phaseGain.connect(audioContext.destination);
+    
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(audioContext.destination);
+    
+    whooshSource.connect(whooshFilter);
+    whooshFilter.connect(whooshGain);
+    whooshGain.connect(audioContext.destination);
+    
+    clickOsc.connect(clickGain);
+    clickGain.connect(audioContext.destination);
+    
+    // Start
+    phaseOsc.start(now);
+    phaseOsc.stop(now + duration);
+    shimmerOsc.start(now);
+    shimmerOsc.stop(now + duration);
+    tremoloOsc.start(now);
+    tremoloOsc.stop(now + duration);
+    whooshSource.start(now);
+    whooshSource.stop(now + duration);
+    clickOsc.start(now + duration - 0.1);
+    clickOsc.stop(now + duration);
+  });
+}
+
+// Shockwave - massive EMP pulse with silence effect
+export function playShockwaveSound() {
+  safePlay(() => {
+    const now = audioContext.currentTime;
+    const duration = 1.2;
+    
+    // Initial massive thump
+    const thumpOsc = audioContext.createOscillator();
+    thumpOsc.type = 'sine';
+    thumpOsc.frequency.setValueAtTime(80, now);
+    thumpOsc.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+    
+    const thumpGain = audioContext.createGain();
+    thumpGain.gain.setValueAtTime(0, now);
+    thumpGain.gain.linearRampToValueAtTime(volumes.special * 1.0, now + 0.02);
+    thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    
+    // EMP crackle (electrical discharge)
+    const empBuffer = createNoiseBuffer(0.8, 0.7);
+    const empSource = audioContext.createBufferSource();
+    empSource.buffer = empBuffer;
+    
+    const empGain = audioContext.createGain();
+    empGain.gain.setValueAtTime(0, now);
+    empGain.gain.linearRampToValueAtTime(volumes.special * 0.6, now + 0.05);
+    empGain.gain.setValueAtTime(volumes.special * 0.4, now + 0.2);
+    empGain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+    
+    const empFilter = audioContext.createBiquadFilter();
+    empFilter.type = 'bandpass';
+    empFilter.frequency.setValueAtTime(3000, now);
+    empFilter.frequency.exponentialRampToValueAtTime(500, now + 0.8);
+    empFilter.Q.value = 4;
+    
+    // Expanding wave tone (the "silence" spreading)
+    const waveOsc = audioContext.createOscillator();
+    waveOsc.type = 'triangle';
+    waveOsc.frequency.setValueAtTime(600, now);
+    waveOsc.frequency.exponentialRampToValueAtTime(100, now + duration);
+    
+    const waveGain = audioContext.createGain();
+    waveGain.gain.setValueAtTime(0, now);
+    waveGain.gain.linearRampToValueAtTime(volumes.special * 0.35, now + 0.1);
+    waveGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    // Sub-bass rumble (ground shake)
+    const subOsc = audioContext.createOscillator();
+    subOsc.type = 'sawtooth';
+    subOsc.frequency.value = 35;
+    
+    const subGain = audioContext.createGain();
+    subGain.gain.setValueAtTime(0, now);
+    subGain.gain.linearRampToValueAtTime(volumes.special * 0.5, now + 0.05);
+    subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+    
+    const subFilter = audioContext.createBiquadFilter();
+    subFilter.type = 'lowpass';
+    subFilter.frequency.value = 80;
+    
+    // "Mom" tone - ominous descending note
+    const momOsc = audioContext.createOscillator();
+    momOsc.type = 'sine';
+    momOsc.frequency.setValueAtTime(440, now + 0.3);
+    momOsc.frequency.exponentialRampToValueAtTime(110, now + duration);
+    
+    const momGain = audioContext.createGain();
+    momGain.gain.setValueAtTime(0, now);
+    momGain.gain.setValueAtTime(0, now + 0.25);
+    momGain.gain.linearRampToValueAtTime(volumes.special * 0.25, now + 0.35);
+    momGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    
+    // Connect all
+    thumpOsc.connect(thumpGain);
+    thumpGain.connect(audioContext.destination);
+    
+    empSource.connect(empFilter);
+    empFilter.connect(empGain);
+    empGain.connect(audioContext.destination);
+    
+    waveOsc.connect(waveGain);
+    waveGain.connect(audioContext.destination);
+    
+    subOsc.connect(subFilter);
+    subFilter.connect(subGain);
+    subGain.connect(audioContext.destination);
+    
+    momOsc.connect(momGain);
+    momGain.connect(audioContext.destination);
+    
+    // Start all
+    thumpOsc.start(now);
+    thumpOsc.stop(now + 0.4);
+    empSource.start(now);
+    empSource.stop(now + 0.8);
+    waveOsc.start(now);
+    waveOsc.stop(now + duration);
+    subOsc.start(now);
+    subOsc.stop(now + 0.6);
+    momOsc.start(now + 0.3);
+    momOsc.stop(now + duration);
+  });
+}

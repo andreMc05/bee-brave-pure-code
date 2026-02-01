@@ -86,9 +86,11 @@ export function tryBuildNewCell() {
 // Reset cells to initial state
 export function resetCells() {
   hiveHoney = 0;
-  cells.length = 1;
-  cells[0] = { q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 };
-  cellExplosions = [];
+  // Clear and recreate initial cell (more robust than setting length)
+  cells.length = 0;
+  cells.push({ q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 });
+  // Clear in-place instead of reassigning to preserve references
+  cellExplosions.length = 0;
 }
 
 // Update cells (growth and firing)

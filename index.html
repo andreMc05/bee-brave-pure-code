@@ -66,7 +66,9 @@
               <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> - Move ship</div>
               <div><kbd>Space</kbd> - Fire weapons</div>
               <div><kbd>V</kbd> - Use special weapon</div>
-              <div><kbd>Shift</kbd> - Cycle weapons</div>
+              <div><kbd>B</kbd> - Heavy weapon</div>
+              <div><kbd>C</kbd> - Defensive tech</div>
+              <div><kbd>Shift</kbd> - Cycle special</div>
             </div>
           </div>
           <div class="how-to-section">
@@ -75,6 +77,22 @@
               <div>❄️ <strong>Freeze</strong> - Slows enemies</div>
               <div>⚡ <strong>Electric</strong> - Area damage</div>
               <div>🌀 <strong>Warp</strong> - Teleport forward</div>
+            </div>
+          </div>
+          <div class="how-to-section">
+            <h3>💥 Heavy Ordnance</h3>
+            <div class="weapon-list">
+              <div>🌀 <strong>Singularity</strong> - Gravity vortex</div>
+              <div>⚡ <strong>Railgun</strong> - Piercing beam</div>
+              <div>💥 <strong>Shockwave</strong> - Stuns all</div>
+            </div>
+          </div>
+          <div class="how-to-section">
+            <h3>🛡️ Defensive Tech</h3>
+            <div class="weapon-list">
+              <div>🛡️ <strong>Shield</strong> - Energy barrier</div>
+              <div>🚀 <strong>Missiles</strong> - Homing</div>
+              <div>👻 <strong>Cloak</strong> - Invisibility</div>
             </div>
           </div>
           <div class="how-to-section">
@@ -276,7 +294,7 @@
 
     <!-- Special Weapons -->
     <div class="stat-section weapons-section">
-      <div class="weapons-title">Special Weapons</div>
+      <div class="weapons-title">Special Weapons <kbd class="key-hint">V</kbd></div>
       <div class="weapons-grid">
         <div class="weapon-card" id="weaponFreeze" data-weapon="freeze">
           <div class="weapon-icon">❄️</div>
@@ -293,6 +311,26 @@
           <div class="weapon-name">Warp</div>
           <div class="weapon-count" id="warpCount">2</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Heavy Weapon Slot (single weapon) -->
+    <div class="stat-section weapons-section heavy-weapons-section">
+      <div class="weapons-title">Heavy Ordnance <kbd class="key-hint">B</kbd></div>
+      <div class="heavy-weapon-slot empty" id="heavyWeaponSlot">
+        <div class="heavy-weapon-icon" id="heavyWeaponIcon">—</div>
+        <div class="heavy-weapon-name" id="heavyWeaponName">None</div>
+        <div class="heavy-weapon-empty" id="heavyWeaponEmpty">Collect drops!</div>
+      </div>
+    </div>
+
+    <!-- Defensive Weapon Slot (single weapon) -->
+    <div class="stat-section weapons-section defensive-weapons-section">
+      <div class="weapons-title">Defensive Tech <kbd class="key-hint">C</kbd></div>
+      <div class="defensive-weapon-slot empty" id="defensiveWeaponSlot">
+        <div class="defensive-weapon-icon" id="defensiveWeaponIcon">—</div>
+        <div class="defensive-weapon-name" id="defensiveWeaponName">None</div>
+        <div class="defensive-weapon-empty" id="defensiveWeaponEmpty">Collect drops!</div>
       </div>
     </div>
   </div>

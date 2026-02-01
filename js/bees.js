@@ -30,6 +30,8 @@ import {
 import { spawnExplosionParticles } from './particles.js';
 import { pickResourceForBee, areAllResourcesDepleted, updateTotalResources } from './resources.js';
 import { cells, hiveHoney, addHiveHoney } from './cells.js';
+import { isUserCloaked } from './combat.js';
+
 
 // Bee storage
 export let bees = [];
@@ -202,6 +204,8 @@ export function updateDropship(dt) {
 
 // Update hunter bees
 export function updateHunterBees(dt, userIcon, bullets) {
+  const userCloaked = isUserCloaked();
+  
   for (let i = hunterBees.length - 1; i >= 0; i--) {
     const hunter = hunterBees[i];
     
@@ -220,17 +224,41 @@ export function updateHunterBees(dt, userIcon, bullets) {
     }
     const frozenMultiplier = hunter.frozen > 0 ? 0.2 : 1.0;
     
-    // Move toward user
-    const dx = userIcon.x - hunter.x;
-    const dy = userIcon.y - hunter.y;
-    const dist = Math.hypot(dx, dy);
-    hunter.angle = Math.atan2(dy, dx);
+    // Move toward user (or wander if cloaked)
+    let dx, dy, dist;
+    if (userCloaked) {
+      // Hunter loses track - wander around last known position
+      if (!hunter.lastKnownUserPos) {
+        hunter.lastKnownUserPos = { x: userIcon.x, y: userIcon.y };
+      }
+      // Add some random wandering
+      if (!hunter.wanderTarget || Math.random() < 0.01) {
+        hunter.wanderTarget = {
+          x: hunter.lastKnownUserPos.x + (Math.random() * 150 - 75),
+          y: hunter.lastKnownUserPos.y + (Math.random() * 150 - 75)
+        };
+      }
+      dx = hunter.wanderTarget.x - hunter.x;
+      dy = hunter.wanderTarget.y - hunter.y;
+      dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        hunter.angle = Math.atan2(dy, dx);
+      }
+    } else {
+      // Normal targeting
+      hunter.lastKnownUserPos = { x: userIcon.x, y: userIcon.y };
+      hunter.wanderTarget = null;
+      dx = userIcon.x - hunter.x;
+      dy = userIcon.y - hunter.y;
+      dist = Math.hypot(dx, dy);
+      hunter.angle = Math.atan2(dy, dx);
+    }
     
-    const optimalRange = 120;
+    const optimalRange = userCloaked ? 200 : 120; // Hunters stay further when confused
     if (dist > optimalRange) {
       hunter.x += (dx / dist) * hunter.speed * frozenMultiplier * (dt * 0.06);
       hunter.y += (dy / dist) * hunter.speed * frozenMultiplier * (dt * 0.06);
-    } else if (dist < optimalRange * 0.6) {
+    } else if (dist < optimalRange * 0.6 && !userCloaked) {
       hunter.x -= (dx / dist) * hunter.speed * 0.5 * frozenMultiplier * (dt * 0.06);
       hunter.y -= (dy / dist) * hunter.speed * 0.5 * frozenMultiplier * (dt * 0.06);
     }
@@ -243,9 +271,9 @@ export function updateHunterBees(dt, userIcon, bullets) {
     hunter.x = Math.min(Math.max(hunter.x, hunter.size), w - hunter.size);
     hunter.y = Math.min(Math.max(hunter.y, hunter.size), h - hunter.size);
     
-    // Fire laser
+    // Fire laser (only if user is visible)
     hunter.fireCooldown = Math.max(0, hunter.fireCooldown - dt);
-    if (hunter.fireCooldown <= 0 && dist < 300 && hunter.frozen <= 0) {
+    if (hunter.fireCooldown <= 0 && dist < 300 && hunter.frozen <= 0 && !userCloaked) {
       const inaccuracy = (Math.random() - 0.5) * 0.15;
       const fireAngle = hunter.angle + inaccuracy;
       
@@ -292,14 +320,15 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
     bee.wingPhase += bee.wingSpeed * dt * 0.001 * animSpeedMultiplier * frozenMultiplierAnim;
     bee.bobPhase += bee.bobSpeed * dt * 0.001 * frozenMultiplierAnim;
     
-    // Check distance to user
+    // Check distance to user (cloaked users are invisible to bees)
     let userDistance = Infinity;
-    if (userIcon) {
+    const userCloaked = isUserCloaked();
+    if (userIcon && !userCloaked) {
       userDistance = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
     }
 
-    // STRATEGIC HUNTING MODE
-    if (allResourcesDepleted && userIcon) {
+    // STRATEGIC HUNTING MODE (disabled when user is cloaked)
+    if (allResourcesDepleted && userIcon && !userCloaked) {
       if (bee.state !== 'return' && bee.state !== 'hunt') {
         bee.state = 'hunt';
         bee.cargo = 0;
@@ -330,8 +359,19 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
         }
       }
     }
-    // Normal attack behavior
-    else if (userIcon && userDistance < BEE_ATTACK_RANGE) {
+    // When cloaked during hunt mode, bees wander confused
+    else if (allResourcesDepleted && userCloaked && bee.state === 'hunt') {
+      // Bees lose track and wander
+      if (!bee.confusedTarget || Math.random() < 0.02) {
+        bee.confusedTarget = {
+          x: bee.x + (Math.random() * 200 - 100),
+          y: bee.y + (Math.random() * 200 - 100)
+        };
+      }
+      bee.target = bee.confusedTarget;
+    }
+    // Normal attack behavior (disabled when user is cloaked)
+    else if (userIcon && userDistance < BEE_ATTACK_RANGE && !userCloaked) {
       if (bee.state === 'forage' || bee.state === 'idle') {
         bee.state = 'attack';
         bee.attackCooldown = 2000;
@@ -340,6 +380,11 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
         bee.target = { x: userIcon.x, y: userIcon.y };
         bee.attackCooldown = Math.max(0, bee.attackCooldown - dt);
       }
+    } else if (userCloaked && bee.state === 'attack') {
+      // User cloaked while being attacked - bee loses track
+      bee.state = 'forage';
+      bee.target = null;
+      bee.attackCooldown = 0;
     } else {
       if (bee.state === 'attack') {
         bee.attackCooldown = Math.max(0, bee.attackCooldown - dt);

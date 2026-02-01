@@ -25,7 +25,7 @@ import {
 import { resourceSpots } from './resources.js';
 import { cells, hiveHoney, hexToPixel, cellExplosions } from './cells.js';
 import { bees, hunterBees, dropship, hunterExplosions, beeExplosions } from './bees.js';
-import { bullets, freezeBombs, electricBlasts } from './combat.js';
+import { bullets, freezeBombs, electricBlasts, singularities, railgunBeams, shockwaves, weaponDrops, defensiveDrops, activeShields, counterMissiles, cloakEffect } from './combat.js';
 import { userIcon, spawnIndicator, userExplosion, userTrail } from './user.js';
 import { particles, impactEffects } from './particles.js';
 
@@ -238,6 +238,8 @@ export function draw(gameOver, gameStarted, gameStartTime) {
 
   // Draw game elements (ordered back to front)
   drawResources();
+  drawWeaponDrops();
+  drawDefensiveDrops();
   drawCells();
   drawHiveProtection(gameStartTime);
   drawBees();
@@ -247,11 +249,15 @@ export function draw(gameOver, gameStarted, gameStartTime) {
   drawParticles();
   drawImpactEffects();
   drawBullets();
+  drawCounterMissiles();
   drawWeaponEffects();
+  drawHeavyWeaponEffects();
+  drawDefensiveEffects();
   drawSpawnIndicator();
   drawUserExplosion();
   drawUserTrail();
   drawUserIcon();
+  drawCloakOverlay();
   
   // Restore canvas from screen shake offset
   ctx.restore();
@@ -276,6 +282,351 @@ export function drawResources() {
     ctx.strokeStyle = pct > 0 ? 'rgba(130,177,255,0.8)' : 'rgba(130,177,255,0.25)';
     ctx.stroke();
   });
+}
+
+// Draw weapon drops (collectible heavy weapons)
+export function drawWeaponDrops() {
+  const TWO_PI = Math.PI * 2;
+  const now = performance.now();
+  
+  weaponDrops.forEach(drop => {
+    if (!isVisible(drop.x, drop.y, 40)) return;
+    
+    const age = now - drop.spawnTime;
+    const lifeProgress = age / drop.lifetime;
+    
+    // Blink when about to expire (last 3 seconds)
+    const blinkThreshold = 1 - (3000 / drop.lifetime);
+    let visible = true;
+    if (lifeProgress > blinkThreshold) {
+      const blinkRate = 0.1 + (lifeProgress - blinkThreshold) * 0.3;
+      visible = Math.sin(now * 0.02) > 0;
+    }
+    
+    if (!visible) return;
+    
+    ctx.save();
+    ctx.translate(drop.x, drop.y);
+    
+    // Pulse effect
+    const pulse = 0.8 + Math.sin(now * 0.005 + drop.pulsePhase) * 0.2;
+    const baseRadius = 25 * pulse;
+    
+    // Outer glow ring
+    const glowGradient = ctx.createRadialGradient(0, 0, baseRadius * 0.5, 0, 0, baseRadius * 1.5);
+    glowGradient.addColorStop(0, 'rgba(180, 100, 255, 0.4)');
+    glowGradient.addColorStop(0.6, 'rgba(150, 80, 220, 0.2)');
+    glowGradient.addColorStop(1, 'rgba(120, 60, 180, 0)');
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius * 1.5, 0, TWO_PI);
+    ctx.fill();
+    
+    // Main circle
+    const mainGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, baseRadius);
+    mainGradient.addColorStop(0, 'rgba(220, 180, 255, 0.9)');
+    mainGradient.addColorStop(0.7, 'rgba(150, 100, 200, 0.8)');
+    mainGradient.addColorStop(1, 'rgba(100, 60, 150, 0.6)');
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius, 0, TWO_PI);
+    ctx.fill();
+    
+    // Border
+    ctx.strokeStyle = 'rgba(200, 150, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Rotating particles around the drop
+    const particleCount = 6;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (TWO_PI * i / particleCount) + now * 0.002;
+      const dist = baseRadius + 8 + Math.sin(now * 0.003 + i) * 3;
+      const px = Math.cos(angle) * dist;
+      const py = Math.sin(angle) * dist;
+      
+      ctx.fillStyle = 'rgba(220, 180, 255, 0.7)';
+      ctx.beginPath();
+      ctx.arc(px, py, 2, 0, TWO_PI);
+      ctx.fill();
+    }
+    
+    // Weapon icon
+    ctx.font = 'bold 20px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(drop.icon, 0, 0);
+    
+    // Weapon name below
+    ctx.font = 'bold 9px system-ui';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(drop.name.toUpperCase(), 0, baseRadius + 15);
+    
+    // "PICK UP" indicator
+    ctx.font = '8px system-ui';
+    ctx.fillStyle = 'rgba(200, 150, 255, 0.8)';
+    ctx.fillText('HEAVY WEAPON', 0, -baseRadius - 10);
+    
+    ctx.restore();
+  });
+}
+
+// Draw defensive weapon drops (collectible utility weapons)
+export function drawDefensiveDrops() {
+  const TWO_PI = Math.PI * 2;
+  const now = performance.now();
+  
+  defensiveDrops.forEach(drop => {
+    if (!isVisible(drop.x, drop.y, 40)) return;
+    
+    const age = now - drop.spawnTime;
+    const lifeProgress = age / drop.lifetime;
+    
+    // Blink when about to expire
+    const blinkThreshold = 1 - (3000 / drop.lifetime);
+    let visible = true;
+    if (lifeProgress > blinkThreshold) {
+      visible = Math.sin(now * 0.02) > 0;
+    }
+    
+    if (!visible) return;
+    
+    ctx.save();
+    ctx.translate(drop.x, drop.y);
+    
+    const pulse = 0.8 + Math.sin(now * 0.005 + drop.pulsePhase) * 0.2;
+    const baseRadius = 25 * pulse;
+    
+    // Outer glow ring (golden/teal for defensive)
+    const glowGradient = ctx.createRadialGradient(0, 0, baseRadius * 0.5, 0, 0, baseRadius * 1.5);
+    glowGradient.addColorStop(0, 'rgba(100, 200, 180, 0.4)');
+    glowGradient.addColorStop(0.6, 'rgba(80, 180, 150, 0.2)');
+    glowGradient.addColorStop(1, 'rgba(60, 150, 120, 0)');
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius * 1.5, 0, TWO_PI);
+    ctx.fill();
+    
+    // Main circle
+    const mainGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, baseRadius);
+    mainGradient.addColorStop(0, 'rgba(180, 230, 220, 0.9)');
+    mainGradient.addColorStop(0.7, 'rgba(100, 200, 180, 0.8)');
+    mainGradient.addColorStop(1, 'rgba(60, 150, 130, 0.6)');
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, baseRadius, 0, TWO_PI);
+    ctx.fill();
+    
+    // Border
+    ctx.strokeStyle = 'rgba(150, 220, 200, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Rotating particles
+    const particleCount = 6;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (TWO_PI * i / particleCount) - now * 0.002; // Opposite rotation
+      const dist = baseRadius + 8 + Math.sin(now * 0.003 + i) * 3;
+      const px = Math.cos(angle) * dist;
+      const py = Math.sin(angle) * dist;
+      
+      ctx.fillStyle = 'rgba(180, 230, 220, 0.7)';
+      ctx.beginPath();
+      ctx.arc(px, py, 2, 0, TWO_PI);
+      ctx.fill();
+    }
+    
+    // Weapon icon
+    ctx.font = 'bold 20px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(drop.icon, 0, 0);
+    
+    // Weapon name below
+    ctx.font = 'bold 9px system-ui';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(drop.name.toUpperCase(), 0, baseRadius + 15);
+    
+    // Category indicator
+    ctx.font = '8px system-ui';
+    ctx.fillStyle = 'rgba(150, 220, 200, 0.8)';
+    ctx.fillText('DEFENSIVE', 0, -baseRadius - 10);
+    
+    ctx.restore();
+  });
+}
+
+// Draw counter-missiles
+export function drawCounterMissiles() {
+  const TWO_PI = Math.PI * 2;
+  
+  counterMissiles.forEach(missile => {
+    if (!isVisible(missile.x, missile.y, 20)) return;
+    
+    const angle = Math.atan2(missile.vy, missile.vx);
+    
+    ctx.save();
+    ctx.translate(missile.x, missile.y);
+    
+    // Draw trail
+    if (missile.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(missile.trail[0].x - missile.x, missile.trail[0].y - missile.y);
+      for (let i = 1; i < missile.trail.length; i++) {
+        const t = missile.trail[i];
+        const alpha = 1 - (i / missile.trail.length);
+        ctx.strokeStyle = `rgba(255, 200, 100, ${alpha * 0.5})`;
+        ctx.lineWidth = 3 * alpha;
+        ctx.lineTo(t.x - missile.x, t.y - missile.y);
+      }
+      ctx.stroke();
+    }
+    
+    ctx.rotate(angle);
+    
+    // Missile body
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6, 3, 0, 0, TWO_PI);
+    ctx.fill();
+    
+    // Nose cone
+    ctx.fillStyle = '#ff6644';
+    ctx.beginPath();
+    ctx.moveTo(6, 0);
+    ctx.lineTo(3, -2);
+    ctx.lineTo(3, 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Exhaust flame
+    const flameLength = 4 + Math.random() * 3;
+    ctx.fillStyle = 'rgba(255, 150, 50, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(-6, -1.5);
+    ctx.lineTo(-6 - flameLength, 0);
+    ctx.lineTo(-6, 1.5);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.fillStyle = 'rgba(255, 255, 100, 0.9)';
+    ctx.beginPath();
+    ctx.moveTo(-6, -0.8);
+    ctx.lineTo(-6 - flameLength * 0.6, 0);
+    ctx.lineTo(-6, 0.8);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+  });
+}
+
+// Draw defensive weapon effects (shields)
+export function drawDefensiveEffects() {
+  const TWO_PI = Math.PI * 2;
+  const now = performance.now();
+  
+  // Draw active shields
+  activeShields.forEach(shield => {
+    if (!isVisible(shield.x, shield.y, shield.radius)) return;
+    
+    const progress = shield.duration / shield.maxDuration;
+    const pulse = 0.8 + Math.sin(now * 0.008) * 0.2;
+    
+    ctx.save();
+    ctx.translate(shield.x, shield.y);
+    
+    // Outer glow
+    const glowGradient = ctx.createRadialGradient(0, 0, shield.radius * 0.7, 0, 0, shield.radius * 1.2);
+    glowGradient.addColorStop(0, 'rgba(255, 215, 0, 0)');
+    glowGradient.addColorStop(0.7, `rgba(255, 215, 0, ${0.2 * progress * pulse})`);
+    glowGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, shield.radius * 1.2, 0, TWO_PI);
+    ctx.fill();
+    
+    // Main shield bubble
+    const shieldGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, shield.radius);
+    shieldGradient.addColorStop(0, 'rgba(255, 235, 150, 0.1)');
+    shieldGradient.addColorStop(0.8, `rgba(255, 215, 0, ${0.15 * progress})`);
+    shieldGradient.addColorStop(1, `rgba(255, 200, 50, ${0.3 * progress})`);
+    ctx.fillStyle = shieldGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, shield.radius * pulse, 0, TWO_PI);
+    ctx.fill();
+    
+    // Shield border
+    ctx.strokeStyle = `rgba(255, 215, 0, ${0.8 * progress})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, shield.radius * pulse, 0, TWO_PI);
+    ctx.stroke();
+    
+    // Hexagonal pattern overlay
+    ctx.strokeStyle = `rgba(255, 235, 150, ${0.3 * progress})`;
+    ctx.lineWidth = 1;
+    const hexSize = 15;
+    for (let angle = 0; angle < TWO_PI; angle += Math.PI / 3) {
+      for (let r = hexSize; r < shield.radius; r += hexSize * 1.5) {
+        const hx = Math.cos(angle + now * 0.001) * r;
+        const hy = Math.sin(angle + now * 0.001) * r;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const ha = (TWO_PI * i / 6) + Math.PI / 6;
+          const px = hx + Math.cos(ha) * hexSize * 0.4;
+          const py = hy + Math.sin(ha) * hexSize * 0.4;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+    
+    // Duration indicator
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * progress})`;
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.ceil(shield.duration / 1000)}s`, 0, -shield.radius - 10);
+    
+    ctx.restore();
+  });
+}
+
+// Draw cloak overlay (screen effect when cloaked)
+export function drawCloakOverlay() {
+  if (!cloakEffect || !userIcon) return;
+  
+  const progress = cloakEffect.duration / cloakEffect.maxDuration;
+  const now = performance.now();
+  
+  // User becomes semi-transparent when cloaked
+  // This is handled separately - just draw the cloak indicator
+  
+  ctx.save();
+  ctx.translate(userIcon.x, userIcon.y);
+  
+  // Shimmer effect around user
+  const shimmerRadius = 30 + Math.sin(now * 0.01) * 5;
+  ctx.strokeStyle = `rgba(100, 200, 255, ${0.3 * progress})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.arc(0, 0, shimmerRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Cloaked text
+  ctx.fillStyle = `rgba(100, 200, 255, ${0.6 * progress})`;
+  ctx.font = 'bold 10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('CLOAKED', 0, -shimmerRadius - 8);
+  ctx.fillText(`${Math.ceil(cloakEffect.duration / 1000)}s`, 0, shimmerRadius + 15);
+  
+  ctx.restore();
 }
 
 // Draw hive cells (OPTIMIZED with culling)
@@ -1425,6 +1776,226 @@ export function drawWeaponEffects() {
     ctx.beginPath();
     ctx.arc(0, 0, 8, 0, TWO_PI);
     ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Draw heavy weapon effects
+export function drawHeavyWeaponEffects() {
+  const TWO_PI = Math.PI * 2;
+  const now = performance.now();
+  
+  // Singularities (gravity wells / black holes)
+  singularities.forEach(singularity => {
+    if (!isVisible(singularity.x, singularity.y, singularity.radius)) return;
+    
+    const progress = 1 - (singularity.duration / singularity.maxDuration);
+    const pulse = Math.sin(now * 0.01) * 0.2 + 0.8;
+    
+    ctx.save();
+    ctx.translate(singularity.x, singularity.y);
+    
+    // Outer distortion field
+    const distortGradient = ctx.createRadialGradient(0, 0, singularity.radius * 0.3, 0, 0, singularity.radius);
+    distortGradient.addColorStop(0, 'rgba(20, 0, 40, 0.9)');
+    distortGradient.addColorStop(0.3, 'rgba(60, 20, 100, 0.6)');
+    distortGradient.addColorStop(0.6, 'rgba(100, 50, 150, 0.3)');
+    distortGradient.addColorStop(1, 'rgba(150, 100, 200, 0)');
+    ctx.fillStyle = distortGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, singularity.radius, 0, TWO_PI);
+    ctx.fill();
+    
+    // Swirling debris effect (particles rotating around center)
+    const particleCount = 12;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (TWO_PI * i / particleCount) + now * 0.003 + progress * TWO_PI;
+      const dist = singularity.radius * (0.4 + Math.sin(angle * 3 + now * 0.002) * 0.3);
+      const particleX = Math.cos(angle) * dist;
+      const particleY = Math.sin(angle) * dist;
+      const particleSize = 2 + Math.sin(angle + now * 0.005) * 1.5;
+      
+      ctx.fillStyle = `rgba(200, 150, 255, ${0.6 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(particleX, particleY, particleSize, 0, TWO_PI);
+      ctx.fill();
+    }
+    
+    // Inner event horizon
+    const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+    innerGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    innerGradient.addColorStop(0.5, 'rgba(10, 0, 30, 0.9)');
+    innerGradient.addColorStop(1, 'rgba(40, 10, 80, 0)');
+    ctx.fillStyle = innerGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, TWO_PI);
+    ctx.fill();
+    
+    // Accretion disk rings
+    for (let ring = 0; ring < 3; ring++) {
+      const ringRadius = 20 + ring * 25 + Math.sin(now * 0.002 + ring) * 5;
+      const ringAlpha = 0.4 - ring * 0.1;
+      ctx.strokeStyle = `rgba(180, 100, 255, ${ringAlpha * pulse})`;
+      ctx.lineWidth = 2 - ring * 0.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, ringRadius, 0, TWO_PI);
+      ctx.stroke();
+    }
+    
+    // Center glow pulse
+    const coreGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15 * pulse);
+    coreGradient.addColorStop(0, 'rgba(255, 200, 255, 0.8)');
+    coreGradient.addColorStop(0.5, 'rgba(150, 50, 200, 0.4)');
+    coreGradient.addColorStop(1, 'rgba(100, 0, 150, 0)');
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15 * pulse, 0, TWO_PI);
+    ctx.fill();
+    
+    ctx.restore();
+  });
+  
+  // Railgun beams
+  railgunBeams.forEach(beam => {
+    if (beam.length <= 0) return;
+    
+    const progress = 1 - (beam.duration / beam.maxDuration);
+    const fadeAlpha = progress < 0.5 ? 1 : 1 - (progress - 0.5) * 2;
+    const beamEndX = beam.x + Math.cos(beam.angle) * beam.length;
+    const beamEndY = beam.y + Math.sin(beam.angle) * beam.length;
+    
+    ctx.save();
+    
+    // Outer glow
+    ctx.strokeStyle = `rgba(100, 200, 255, ${0.3 * fadeAlpha})`;
+    ctx.lineWidth = beam.width * 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(beam.x, beam.y);
+    ctx.lineTo(beamEndX, beamEndY);
+    ctx.stroke();
+    
+    // Middle beam
+    ctx.strokeStyle = `rgba(150, 220, 255, ${0.6 * fadeAlpha})`;
+    ctx.lineWidth = beam.width * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(beam.x, beam.y);
+    ctx.lineTo(beamEndX, beamEndY);
+    ctx.stroke();
+    
+    // Core beam
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * fadeAlpha})`;
+    ctx.lineWidth = beam.width * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(beam.x, beam.y);
+    ctx.lineTo(beamEndX, beamEndY);
+    ctx.stroke();
+    
+    // Impact sparks at end
+    if (progress < 0.3) {
+      const sparkCount = 6;
+      for (let i = 0; i < sparkCount; i++) {
+        const sparkAngle = beam.angle + Math.PI + (Math.random() - 0.5) * Math.PI * 0.5;
+        const sparkDist = 10 + Math.random() * 20;
+        const sparkX = beamEndX + Math.cos(sparkAngle) * sparkDist;
+        const sparkY = beamEndY + Math.sin(sparkAngle) * sparkDist;
+        
+        ctx.fillStyle = `rgba(255, 255, 200, ${0.8 * fadeAlpha})`;
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 2 + Math.random() * 2, 0, TWO_PI);
+        ctx.fill();
+      }
+    }
+    
+    // Origin muzzle flash
+    if (progress < 0.2) {
+      const flashIntensity = 1 - progress / 0.2;
+      const flashGradient = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, 30 * flashIntensity);
+      flashGradient.addColorStop(0, `rgba(255, 255, 255, ${flashIntensity})`);
+      flashGradient.addColorStop(0.5, `rgba(100, 200, 255, ${0.5 * flashIntensity})`);
+      flashGradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+      ctx.fillStyle = flashGradient;
+      ctx.beginPath();
+      ctx.arc(beam.x, beam.y, 30 * flashIntensity, 0, TWO_PI);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  });
+  
+  // Shockwaves (EMP pulse)
+  shockwaves.forEach(shockwave => {
+    if (!isVisible(shockwave.x, shockwave.y, shockwave.radius)) return;
+    
+    const progress = 1 - (shockwave.duration / shockwave.maxDuration);
+    const expandProgress = Math.min(1, progress / 0.3);
+    const fadeAlpha = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
+    
+    ctx.save();
+    ctx.translate(shockwave.x, shockwave.y);
+    
+    // Main shockwave ring
+    ctx.strokeStyle = `rgba(200, 100, 255, ${0.8 * fadeAlpha})`;
+    ctx.lineWidth = 8 - expandProgress * 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, shockwave.radius, 0, TWO_PI);
+    ctx.stroke();
+    
+    // Inner electric arcs
+    if (shockwave.phase === 'expand') {
+      const arcCount = 8;
+      ctx.strokeStyle = `rgba(255, 200, 255, ${0.6 * fadeAlpha})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < arcCount; i++) {
+        const angle = (TWO_PI * i / arcCount) + now * 0.005;
+        const arcDist = shockwave.radius * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        // Jagged lightning path
+        let currentDist = 0;
+        while (currentDist < arcDist) {
+          const stepDist = 20 + Math.random() * 20;
+          currentDist += stepDist;
+          const jitter = (Math.random() - 0.5) * 30;
+          const ptX = Math.cos(angle) * currentDist + Math.cos(angle + Math.PI/2) * jitter;
+          const ptY = Math.sin(angle) * currentDist + Math.sin(angle + Math.PI/2) * jitter;
+          ctx.lineTo(ptX, ptY);
+        }
+        ctx.stroke();
+      }
+    }
+    
+    // Outer ripple rings
+    for (let ring = 0; ring < 3; ring++) {
+      const ringProgress = (progress + ring * 0.1) % 1;
+      const ringRadius = shockwave.maxRadius * ringProgress;
+      const ringAlpha = (1 - ringProgress) * 0.4 * fadeAlpha;
+      
+      ctx.strokeStyle = `rgba(150, 80, 200, ${ringAlpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, ringRadius, 0, TWO_PI);
+      ctx.stroke();
+    }
+    
+    // Center EMP source glow
+    const centerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 50);
+    centerGlow.addColorStop(0, `rgba(200, 150, 255, ${0.6 * fadeAlpha})`);
+    centerGlow.addColorStop(0.5, `rgba(150, 80, 200, ${0.3 * fadeAlpha})`);
+    centerGlow.addColorStop(1, 'rgba(100, 50, 150, 0)');
+    ctx.fillStyle = centerGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 50, 0, TWO_PI);
+    ctx.fill();
+    
+    // Text effect - "silence" indicator (subtle)
+    if (shockwave.phase === 'linger' && fadeAlpha > 0.3) {
+      ctx.fillStyle = `rgba(200, 150, 255, ${0.3 * fadeAlpha})`;
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('STUNNED', 0, -shockwave.radius - 10);
+    }
+    
     ctx.restore();
   });
 }

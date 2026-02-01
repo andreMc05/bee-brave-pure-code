@@ -32,8 +32,18 @@ import {
   bullets, 
   updateBullets, 
   updateWeaponEffects, 
+  updateHeavyWeaponEffects,
+  updateDefensiveWeaponEffects,
   resetCombat, 
-  updateWeaponUI 
+  updateWeaponUI,
+  updateHeavyWeaponUI,
+  updateDefensiveWeaponUI,
+  spawnWeaponDrop,
+  checkWeaponDropCollection,
+  updateWeaponDrops,
+  spawnDefensiveDrop,
+  checkDefensiveDropCollection,
+  updateDefensiveDrops
 } from './combat.js';
 import { 
   userIcon, 
@@ -96,6 +106,18 @@ function update(now, dt) {
   
   // Update weapon effects
   updateWeaponEffects(dt);
+  updateHeavyWeaponEffects(dt);
+  
+  // Update weapon drops
+  spawnWeaponDrop(gameStartTime);
+  updateWeaponDrops(dt);
+  checkWeaponDropCollection(userIcon);
+  
+  // Update defensive weapon drops
+  spawnDefensiveDrop(gameStartTime);
+  updateDefensiveDrops(dt);
+  checkDefensiveDropCollection(userIcon);
+  updateDefensiveWeaponEffects(dt, userIcon);
   
   // Update screen shake
   updateScreenShake(dt);
@@ -233,11 +255,16 @@ function syncSettingsToGame() {
 
 // Launch the actual game
 function launchGame() {
+  // Reset hive cells first (ensures fresh state)
+  resetCells();
+  
   // Initialize game
   createBees(+document.getElementById('colonySize').value);
   makeResourceSpots(+document.getElementById('resourceCount').value, +document.getElementById('resourceAmount').value);
   placeUserIcon();
   updateWeaponUI();
+  updateHeavyWeaponUI();
+  updateDefensiveWeaponUI();
 
   // Reset score
   score = 0;
@@ -298,6 +325,8 @@ function restartGame() {
   // Reset combat
   resetCombat();
   updateWeaponUI();
+  updateHeavyWeaponUI();
+  updateDefensiveWeaponUI();
   
   // Reset particles
   resetParticles();
