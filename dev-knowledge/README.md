@@ -4,9 +4,9 @@ This folder contains documentation and learnings from developing the Bee Brave g
 
 ## Agent / contributor rules (concise)
 
-Prescriptive, task-oriented notes live in **`rules/`** (architecture, code style, security, performance, UI/input). Start there for “how should I implement this?”; use the longer docs below for system deep dives.
+Prescriptive, task-oriented notes live in **`rules/`** (architecture, code style, security, performance, UI/input, Git commits). Start there for “how should I implement this?”; use the longer docs below for system deep dives.
 
-**Session entry + token strategy:** repo root **[`../AGENT-INDEX.md`](../AGENT-INDEX.md)** (attach at chat start).
+**Optional session router:** repo-root `AGENT-INDEX.md` is **gitignored** here (local only). Use **`rules/`** for in-repo guidance, or maintain your own `AGENT-INDEX.md` beside the clone.
 
 ## Contents
 

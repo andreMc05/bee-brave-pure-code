@@ -12,6 +12,11 @@ Thumbs.db
 # IDE / Editor
 .idea/
 .vscode/
+
+# Local-only (not pushed): Cursor/agent context and internal notes
+/.cursorrules
+/AGENT-INDEX.md
+/PROJECT-REVIEW.md
 *.swp
 *.swo
 *~

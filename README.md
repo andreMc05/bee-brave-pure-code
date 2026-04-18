@@ -4,10 +4,9 @@ Canvas HTML5 game: pure **ES modules**, no framework, no bundler.
 
 ## For AI / contributors
 
-- **Session router (attach at chat start):** [`AGENT-INDEX.md`](AGENT-INDEX.md) — file search map, token/context strategy, norms.
-- **Project rules:** [`.cursorrules`](.cursorrules)
-- **Task-sized rules:** [`dev-knowledge/rules/`](dev-knowledge/rules/README.md)
+- **In-repo rules:** [`dev-knowledge/rules/`](dev-knowledge/rules/README.md) (architecture, code style, security, performance, UI/input, Git commits).
 - **Deep docs:** [`dev-knowledge/README.md`](dev-knowledge/README.md)
+- **Optional local files (gitignored, not on remote):** add your own repo-root `AGENT-INDEX.md` (session router / search map) and `.cursorrules` (Cursor project rules) if you use them; see `.gitignore`.
 
 ## Run
 

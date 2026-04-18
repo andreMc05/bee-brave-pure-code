@@ -1,0 +1,12 @@
+#!/bin/sh
+# Strip tool-injected footers the project does not want (see dev-knowledge/rules/git-commits.md).
+msg="$1"
+[ -z "$msg" ] || [ ! -f "$msg" ] && exit 0
+tmp="${msg}.strip$$"
+if sed '/^Made-with: Cursor$/d' "$msg" > "$tmp" 2>/dev/null && mv "$tmp" "$msg"; then
+  :
+else
+  rm -f "$tmp"
+  exit 0
+fi
+exit 0

@@ -8,7 +8,7 @@
 
 ## Movement and timing
 
-- **Position / velocity-style updates**: multiply by `(dt * 0.06)` where `dt` is ms (see `.cursorrules`).
+- **Position / velocity-style updates**: multiply by `(dt * 0.06)` where `dt` is ms (see `architecture.md` / codebase).
 - **Cooldowns / durations in ms**: subtract `dt` directly; do not apply the 0.06 factor unless intentionally normalizing a rate.
 
 ## Collections and entities
@@ -35,4 +35,4 @@
 ## Changeset discipline
 
 - Prefer **small, focused diffs** aligned with the task; avoid drive-by reformatting unrelated files.
-- When touching **draw order**, read `dev-knowledge/rendering.md` / `.cursorrules` render order section first.
+- When touching **draw order**, read `dev-knowledge/rendering.md` and match the order used in `draw.js`.
