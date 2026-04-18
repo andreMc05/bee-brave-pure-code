@@ -60,8 +60,8 @@
             <h3>🎯 Objective</h3>
             <p>Destroy the alien beehive and eliminate all bees before they deplete your health!</p>
           </div>
-          <div class="how-to-section">
-            <h3>🎮 Controls</h3>
+          <div class="how-to-section desktop-controls">
+            <h3>🎮 Keyboard Controls</h3>
             <div class="control-list">
               <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> - Move ship</div>
               <div><kbd>Space</kbd> - Fire weapons</div>
@@ -69,6 +69,18 @@
               <div><kbd>B</kbd> - Heavy weapon</div>
               <div><kbd>C</kbd> - Defensive tech</div>
               <div><kbd>Shift</kbd> - Cycle special</div>
+              <p class="how-to-remap-note">You can remap keys from <strong>Custom Game</strong> on the main menu.</p>
+            </div>
+          </div>
+          <div class="how-to-section touch-controls-info">
+            <h3>📱 Touch Controls</h3>
+            <div class="control-list">
+              <div>🕹️ <strong>Left joystick</strong> - Move ship</div>
+              <div>🔴 <strong>FIRE button</strong> - Shoot (hold)</div>
+              <div>🔵 <strong>V button</strong> - Special weapon</div>
+              <div>🟣 <strong>⟳ button</strong> - Cycle weapon</div>
+              <div>🟠 <strong>B button</strong> - Heavy weapon</div>
+              <div>🟢 <strong>C button</strong> - Defensive tech</div>
             </div>
           </div>
           <div class="how-to-section">
@@ -185,28 +197,52 @@
       </div>
 
       <div class="bottom-sections">
-        <div class="section controls-section">
+        <div class="section controls-section desktop-controls">
           <div class="section-title">
             <span class="section-icon">🎮</span>
-            Controls
+            Keyboard Controls
+          </div>
+          <p class="keybind-intro">Click <strong>Change</strong>, then press a key. <kbd class="key-hint-inline">Esc</kbd> cancels. Bindings are saved in this browser.</p>
+          <div class="keybind-toolbar">
+            <button type="button" id="keybindResetBtn" class="keybind-reset-btn">Reset to defaults</button>
+          </div>
+          <div class="keybind-table-wrap">
+            <table class="keybind-table" id="keybindTable">
+              <tbody id="keybindTableBody">
+                <tr data-action="moveUp"><td class="keybind-label">Move up</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-moveUp"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-moveUp">Change</button></td></tr>
+                <tr data-action="moveDown"><td class="keybind-label">Move down</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-moveDown"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-moveDown">Change</button></td></tr>
+                <tr data-action="moveLeft"><td class="keybind-label">Move left</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-moveLeft"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-moveLeft">Change</button></td></tr>
+                <tr data-action="moveRight"><td class="keybind-label">Move right</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-moveRight"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-moveRight">Change</button></td></tr>
+                <tr data-action="shoot"><td class="keybind-label">Fire</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-shoot"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-shoot">Change</button></td></tr>
+                <tr data-action="special"><td class="keybind-label">Special weapon</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-special"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-special">Change</button></td></tr>
+                <tr data-action="cycle"><td class="keybind-label">Cycle special</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-cycle"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-cycle">Change</button></td></tr>
+                <tr data-action="heavy"><td class="keybind-label">Heavy ordnance</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-heavy"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-heavy">Change</button></td></tr>
+                <tr data-action="defensive"><td class="keybind-label">Defensive tech</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-defensive"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-defensive">Change</button></td></tr>
+                <tr data-action="restart"><td class="keybind-label">Restart when game over</td><td class="keybind-keys"><span class="keybind-display" id="keybind-display-restart"></span></td><td><button type="button" class="keybind-change-btn" id="keybind-change-restart">Change</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section controls-section touch-controls-info">
+          <div class="section-title">
+            <span class="section-icon">📱</span>
+            Touch Controls
           </div>
           <div class="controls-grid">
             <div class="control-item">
-              <div class="key-group">
-                <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
-              </div>
+              <span class="touch-icon">🕹️</span>
               <span class="control-desc">Move</span>
             </div>
             <div class="control-item">
-              <kbd class="wide">Space</kbd>
-              <span class="control-desc">Shoot</span>
+              <span class="touch-icon">🔴</span>
+              <span class="control-desc">Fire</span>
             </div>
             <div class="control-item">
-              <kbd>V</kbd>
+              <span class="touch-icon">🔵 V</span>
               <span class="control-desc">Special</span>
             </div>
             <div class="control-item">
-              <kbd>Shift</kbd>
+              <span class="touch-icon">🟣 ⟳</span>
               <span class="control-desc">Cycle</span>
             </div>
           </div>
@@ -294,7 +330,7 @@
 
     <!-- Special Weapons -->
     <div class="stat-section weapons-section">
-      <div class="weapons-title">Special Weapons <kbd class="key-hint">V</kbd></div>
+      <div class="weapons-title">Special Weapons <kbd class="key-hint" id="keyHintSpecial">V</kbd></div>
       <div class="weapons-grid">
         <div class="weapon-card" id="weaponFreeze" data-weapon="freeze">
           <div class="weapon-icon">❄️</div>
@@ -316,7 +352,7 @@
 
     <!-- Heavy Weapon Slot (single weapon) -->
     <div class="stat-section weapons-section heavy-weapons-section">
-      <div class="weapons-title">Heavy Ordnance <kbd class="key-hint">B</kbd></div>
+      <div class="weapons-title">Heavy Ordnance <kbd class="key-hint" id="keyHintHeavy">B</kbd></div>
       <div class="heavy-weapon-slot empty" id="heavyWeaponSlot">
         <div class="heavy-weapon-icon" id="heavyWeaponIcon">—</div>
         <div class="heavy-weapon-name" id="heavyWeaponName">None</div>
@@ -326,7 +362,7 @@
 
     <!-- Defensive Weapon Slot (single weapon) -->
     <div class="stat-section weapons-section defensive-weapons-section">
-      <div class="weapons-title">Defensive Tech <kbd class="key-hint">C</kbd></div>
+      <div class="weapons-title">Defensive Tech <kbd class="key-hint" id="keyHintDefensive">C</kbd></div>
       <div class="defensive-weapon-slot empty" id="defensiveWeaponSlot">
         <div class="defensive-weapon-icon" id="defensiveWeaponIcon">—</div>
         <div class="defensive-weapon-name" id="defensiveWeaponName">None</div>
@@ -358,6 +394,14 @@
         </button>
         <button id="touchCycle" class="touch-btn cycle-btn">
           <span class="btn-inner">⟳</span>
+        </button>
+      </div>
+      <div class="tertiary-buttons">
+        <button id="touchHeavy" class="touch-btn heavy-btn">
+          <span class="btn-inner">B</span>
+        </button>
+        <button id="touchDefensive" class="touch-btn defensive-btn">
+          <span class="btn-inner">C</span>
         </button>
       </div>
     </div>

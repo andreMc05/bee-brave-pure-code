@@ -9,6 +9,21 @@ export let w = 0;
 export let h = 0;
 export let center = { x: 0, y: 0 };
 
+// Mobile scale factor (80% on mobile devices)
+export let mobileScale = 1.0;
+
+// Detect if device is mobile/touch
+export function isMobileDevice() {
+  return ('ontouchstart' in window) || 
+         (navigator.maxTouchPoints > 0) || 
+         (window.innerWidth <= 768);
+}
+
+// Update mobile scale based on device type
+export function updateMobileScale() {
+  mobileScale = isMobileDevice() ? 0.8 : 1.0;
+}
+
 // ========================================
 // Rendering Cache System (Performance)
 // ========================================
@@ -306,6 +321,9 @@ export function resize(userIconRef) {
     userIconRef.current.x = Math.min(Math.max(userIconRef.current.x, 0), w);
     userIconRef.current.y = Math.min(Math.max(userIconRef.current.y, 0), h);
   }
+  // Update mobile scale on resize
+  updateMobileScale();
+  
   // Reset parallax layers on resize
   resetParallaxLayers();
   

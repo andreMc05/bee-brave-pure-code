@@ -5,6 +5,14 @@
 import { cells, hiveHoney } from './cells.js';
 import { bees, destroyedBees, destroyedCells } from './bees.js';
 import { userIcon } from './user.js';
+import {
+  BINDING_ROWS,
+  assignCodeToAction,
+  resetBindingsToDefaults,
+  setRemapListenActionId,
+  getRemapListenActionId,
+  formatActionBinding
+} from './keybinds.js';
 
 // UI element references
 let colonySizeInput, colonySizeVal;
@@ -98,6 +106,91 @@ export function initUI() {
   
   // Setup button handlers
   setupButtonHandlers();
+
+  initKeybindControls();
+}
+
+let keybindCaptureHandler = null;
+
+function clearKeybindListen() {
+  const prevId = getRemapListenActionId();
+  if (keybindCaptureHandler) {
+    document.removeEventListener('keydown', keybindCaptureHandler, true);
+    keybindCaptureHandler = null;
+  }
+  setRemapListenActionId(null);
+  if (prevId) {
+    const prevBtn = document.getElementById(`keybind-change-${prevId}`);
+    if (prevBtn) {
+      prevBtn.textContent = 'Change';
+      prevBtn.classList.remove('listening');
+    }
+  }
+}
+
+function refreshKeybindTableRows() {
+  for (const row of BINDING_ROWS) {
+    const el = document.getElementById(`keybind-display-${row.id}`);
+    if (el) el.textContent = formatActionBinding(row.id);
+  }
+  updateInGameKeyHints();
+}
+
+function updateInGameKeyHints() {
+  const pairs = [
+    ['keyHintSpecial', 'special'],
+    ['keyHintHeavy', 'heavy'],
+    ['keyHintDefensive', 'defensive']
+  ];
+  for (const [domId, actionId] of pairs) {
+    const el = document.getElementById(domId);
+    if (el) el.textContent = formatActionBinding(actionId);
+  }
+}
+
+function initKeybindControls() {
+  const resetBtn = document.getElementById('keybindResetBtn');
+  if (!document.getElementById('keybind-change-moveUp')) {
+    return;
+  }
+
+  for (const row of BINDING_ROWS) {
+    const btn = document.getElementById(`keybind-change-${row.id}`);
+    if (!btn) continue;
+    btn.addEventListener('click', () => {
+      clearKeybindListen();
+      setRemapListenActionId(row.id);
+      btn.textContent = 'Press a key…';
+      btn.classList.add('listening');
+
+      keybindCaptureHandler = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          clearKeybindListen();
+          refreshKeybindTableRows();
+          return;
+        }
+        if (!e.code) return;
+        assignCodeToAction(row.id, e.code);
+        e.preventDefault();
+        e.stopPropagation();
+        clearKeybindListen();
+        refreshKeybindTableRows();
+      };
+      document.addEventListener('keydown', keybindCaptureHandler, true);
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      clearKeybindListen();
+      resetBindingsToDefaults();
+      refreshKeybindTableRows();
+    });
+  }
+
+  refreshKeybindTableRows();
 }
 
 // Initialize slider display values

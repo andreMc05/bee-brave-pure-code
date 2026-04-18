@@ -15,6 +15,7 @@ import {
   parallaxLayers,
   initParallaxLayers,
   screenShake,
+  mobileScale,
   // Rendering cache imports
   HEX_ANGLES,
   renderCache,
@@ -269,11 +270,11 @@ export function drawResources() {
   
   resourceSpots.forEach(spot => {
     // Visibility culling
-    const maxRadius = 42; // 12 + 30
+    const maxRadius = 42 * mobileScale; // 12 + 30
     if (!isVisible(spot.x, spot.y, maxRadius)) return;
     
     const pct = spot.max > 0 ? spot.amount / spot.max : 0;
-    const r = 12 + pct * 30;
+    const r = (12 + pct * 30) * mobileScale;
     
     ctx.beginPath();
     ctx.arc(spot.x, spot.y, r, 0, TWO_PI);
@@ -290,7 +291,7 @@ export function drawWeaponDrops() {
   const now = performance.now();
   
   weaponDrops.forEach(drop => {
-    if (!isVisible(drop.x, drop.y, 40)) return;
+    if (!isVisible(drop.x, drop.y, 40 * mobileScale)) return;
     
     const age = now - drop.spawnTime;
     const lifeProgress = age / drop.lifetime;
@@ -307,6 +308,7 @@ export function drawWeaponDrops() {
     
     ctx.save();
     ctx.translate(drop.x, drop.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Pulse effect
     const pulse = 0.8 + Math.sin(now * 0.005 + drop.pulsePhase) * 0.2;
@@ -378,7 +380,7 @@ export function drawDefensiveDrops() {
   const now = performance.now();
   
   defensiveDrops.forEach(drop => {
-    if (!isVisible(drop.x, drop.y, 40)) return;
+    if (!isVisible(drop.x, drop.y, 40 * mobileScale)) return;
     
     const age = now - drop.spawnTime;
     const lifeProgress = age / drop.lifetime;
@@ -394,6 +396,7 @@ export function drawDefensiveDrops() {
     
     ctx.save();
     ctx.translate(drop.x, drop.y);
+    ctx.scale(mobileScale, mobileScale);
     
     const pulse = 0.8 + Math.sin(now * 0.005 + drop.pulsePhase) * 0.2;
     const baseRadius = 25 * pulse;
@@ -463,12 +466,13 @@ export function drawCounterMissiles() {
   const TWO_PI = Math.PI * 2;
   
   counterMissiles.forEach(missile => {
-    if (!isVisible(missile.x, missile.y, 20)) return;
+    if (!isVisible(missile.x, missile.y, 20 * mobileScale)) return;
     
     const angle = Math.atan2(missile.vy, missile.vx);
     
     ctx.save();
     ctx.translate(missile.x, missile.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Draw trail
     if (missile.trail.length > 1) {
@@ -530,13 +534,15 @@ export function drawDefensiveEffects() {
   
   // Draw active shields
   activeShields.forEach(shield => {
-    if (!isVisible(shield.x, shield.y, shield.radius)) return;
+    const scaledRadius = shield.radius * mobileScale;
+    if (!isVisible(shield.x, shield.y, scaledRadius)) return;
     
     const progress = shield.duration / shield.maxDuration;
     const pulse = 0.8 + Math.sin(now * 0.008) * 0.2;
     
     ctx.save();
     ctx.translate(shield.x, shield.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Outer glow
     const glowGradient = ctx.createRadialGradient(0, 0, shield.radius * 0.7, 0, 0, shield.radius * 1.2);
@@ -608,6 +614,7 @@ export function drawCloakOverlay() {
   
   ctx.save();
   ctx.translate(userIcon.x, userIcon.y);
+  ctx.scale(mobileScale, mobileScale);
   
   // Shimmer effect around user
   const shimmerRadius = 30 + Math.sin(now * 0.01) * 5;
@@ -631,26 +638,29 @@ export function drawCloakOverlay() {
 
 // Draw hive cells (OPTIMIZED with culling)
 export function drawCells() {
+  const scaledHexSize = HEX_SIZE * mobileScale;
   for (let c of cells) {
     const p = hexToPixel(c.q, c.r);
     // Visibility culling
-    if (!isVisible(p.x, p.y, HEX_SIZE)) continue;
-    drawHex(p.x, p.y, HEX_SIZE, c.buildProg, c.honey, c.hp || CELL_MAX_HP, c.maxHp || CELL_MAX_HP);
+    if (!isVisible(p.x, p.y, scaledHexSize)) continue;
+    drawHex(p.x, p.y, scaledHexSize, c.buildProg, c.honey, c.hp || CELL_MAX_HP, c.maxHp || CELL_MAX_HP);
   }
 }
 
 // Draw hive protection shield (OPTIMIZED - cached radius calculation)
 let cachedShieldRadius = 0;
 let lastCellCount = 0;
+let lastMobileScale = 1;
 
 export function drawHiveProtection(gameStartTime) {
   const protectionTimeRemaining = HIVE_PROTECTION_DURATION - (performance.now() - gameStartTime);
   if (protectionTimeRemaining <= 0) return;
   
   const TWO_PI = Math.PI * 2;
+  const scaledHexSize = HEX_SIZE * mobileScale;
   
-  // Only recalculate shield radius if cell count changed
-  if (cells.length !== lastCellCount) {
+  // Only recalculate shield radius if cell count or scale changed
+  if (cells.length !== lastCellCount || mobileScale !== lastMobileScale) {
     let maxDist = 0;
     for (let c of cells) {
       const p = hexToPixel(c.q, c.r);
@@ -659,8 +669,9 @@ export function drawHiveProtection(gameStartTime) {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > maxDist) maxDist = dist;
     }
-    cachedShieldRadius = maxDist + HEX_SIZE * 1.5;
+    cachedShieldRadius = (maxDist + scaledHexSize * 1.5) * mobileScale;
     lastCellCount = cells.length;
+    lastMobileScale = mobileScale;
   }
   
   const shieldRadius = cachedShieldRadius;
@@ -704,9 +715,9 @@ export function drawBees() {
   
   bees.forEach(bee => {
     // Visibility culling (bee size ~20px radius with effects)
-    if (!isVisible(bee.x, bee.y, 25)) return;
+    if (!isVisible(bee.x, bee.y, 25 * mobileScale)) return;
     
-    const scale = bee.size || 1;
+    const scale = (bee.size || 1) * mobileScale;
     const tx = (bee.target ? bee.target.x : center.x) - bee.x;
     const ty = (bee.target ? bee.target.y : center.y) - bee.y;
     const angle = Math.atan2(ty, tx);
@@ -939,12 +950,13 @@ export function drawBees() {
 // Draw dropship (OPTIMIZED - visibility culling)
 export function drawDropship() {
   if (!dropship) return;
-  if (!isVisible(dropship.x, dropship.y, 40)) return;
+  if (!isVisible(dropship.x, dropship.y, 40 * mobileScale)) return;
   
   const TWO_PI = Math.PI * 2;
   
   ctx.save();
   ctx.translate(dropship.x, dropship.y);
+  ctx.scale(mobileScale, mobileScale);
   ctx.rotate(dropship.angle);
   
   // Main body
@@ -1005,8 +1017,9 @@ export function drawHunterBees() {
   const now = Date.now();
   
   hunterBees.forEach(hunter => {
+    const scaledSize = hunter.size * mobileScale;
     // Visibility culling (hunter size ~25px + effects)
-    if (!isVisible(hunter.x, hunter.y, hunter.size + 20)) return;
+    if (!isVisible(hunter.x, hunter.y, scaledSize + 20)) return;
     
     const hpRatio = hunter.hp / hunter.maxHp;
     const wingFlap = Math.sin(hunter.wingPhase) * 0.5 + 0.5;
@@ -1014,6 +1027,7 @@ export function drawHunterBees() {
     
     ctx.save();
     ctx.translate(hunter.x, hunter.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Draw shadow
     ctx.save();
@@ -1235,11 +1249,12 @@ export function drawExplosions() {
   
   // Hunter explosions
   hunterExplosions.forEach(exp => {
-    if (!isVisible(exp.x, exp.y, exp.radius)) return;
+    const scaledRadius = exp.radius * mobileScale;
+    if (!isVisible(exp.x, exp.y, scaledRadius)) return;
     
     const progress = 1 - (exp.duration / exp.maxDuration);
     const alpha = 1 - progress;
-    const radius = exp.radius;
+    const radius = scaledRadius;
     
     ctx.save();
     ctx.translate(exp.x, exp.y);
@@ -1276,11 +1291,12 @@ export function drawExplosions() {
 
   // Bee explosions (simplified)
   beeExplosions.forEach(exp => {
-    if (!isVisible(exp.x, exp.y, exp.radius)) return;
+    const scaledRadius = exp.radius * mobileScale;
+    if (!isVisible(exp.x, exp.y, scaledRadius)) return;
     
     const progress = 1 - (exp.duration / exp.maxDuration);
     const alpha = 1 - progress;
-    const radius = exp.radius;
+    const radius = scaledRadius;
     
     ctx.save();
     ctx.translate(exp.x, exp.y);
@@ -1311,11 +1327,12 @@ export function drawExplosions() {
 
   // Cell explosions (simplified)
   cellExplosions.forEach(exp => {
-    if (!isVisible(exp.x, exp.y, exp.radius)) return;
+    const scaledRadius = exp.radius * mobileScale;
+    if (!isVisible(exp.x, exp.y, scaledRadius)) return;
     
     const progress = 1 - (exp.duration / exp.maxDuration);
     const alpha = 1 - progress;
-    const radius = exp.radius;
+    const radius = scaledRadius;
     
     ctx.save();
     ctx.translate(exp.x, exp.y);
@@ -1642,11 +1659,13 @@ export function drawBullets() {
   const TWO_PI = Math.PI * 2;
   
   bullets.forEach(bullet => {
+    const scaledRadius = bullet.radius * mobileScale;
     // Visibility culling
-    if (!isVisible(bullet.x, bullet.y, bullet.radius * 4)) return;
+    if (!isVisible(bullet.x, bullet.y, scaledRadius * 4)) return;
     
     ctx.save();
     ctx.translate(bullet.x, bullet.y);
+    ctx.scale(mobileScale, mobileScale);
     ctx.rotate(bullet.angle);
     
     if (bullet.isHiveBullet) {
@@ -1714,7 +1733,8 @@ export function drawWeaponEffects() {
   
   // Freeze bombs
   freezeBombs.forEach(bomb => {
-    if (!isVisible(bomb.x, bomb.y, bomb.radius)) return;
+    const scaledRadius = bomb.radius * mobileScale;
+    if (!isVisible(bomb.x, bomb.y, scaledRadius)) return;
     
     const progress = bomb.duration / bomb.maxDuration;
     ctx.save();
@@ -1725,17 +1745,17 @@ export function drawWeaponEffects() {
     ctx.strokeStyle = `rgba(150, 220, 255, ${0.6 * progress})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, bomb.radius, 0, TWO_PI);
+    ctx.arc(0, 0, scaledRadius, 0, TWO_PI);
     ctx.fill();
     ctx.stroke();
     
     // Ice particles (batched)
     ctx.fillStyle = `rgba(200, 240, 255, ${0.8 * progress})`;
-    const dist = bomb.radius * 0.7;
+    const dist = scaledRadius * 0.7;
     for (let i = 0; i < 8; i++) {
       const angle = TWO_PI * i / 8;
       ctx.beginPath();
-      ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 3, 0, TWO_PI);
+      ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 3 * mobileScale, 0, TWO_PI);
       ctx.fill();
     }
     ctx.restore();
@@ -1743,7 +1763,8 @@ export function drawWeaponEffects() {
 
   // Electric blasts
   electricBlasts.forEach(blast => {
-    if (!isVisible(blast.x, blast.y, blast.radius)) return;
+    const scaledRadius = blast.radius * mobileScale;
+    if (!isVisible(blast.x, blast.y, scaledRadius)) return;
     
     const progress = blast.duration / blast.maxDuration;
     ctx.save();
@@ -1753,14 +1774,14 @@ export function drawWeaponEffects() {
     ctx.strokeStyle = `rgba(255, 255, 100, ${0.8 * progress})`;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, blast.radius, 0, TWO_PI);
+    ctx.arc(0, 0, scaledRadius, 0, TWO_PI);
     ctx.stroke();
     
     // Lightning bolts (batched)
     ctx.strokeStyle = `rgba(255, 255, 150, ${progress})`;
     ctx.lineWidth = 2;
-    const startDist = blast.radius * 0.3;
-    const endDist = blast.radius * 0.9;
+    const startDist = scaledRadius * 0.3;
+    const endDist = scaledRadius * 0.9;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const angle = TWO_PI * i / 6;
@@ -1774,7 +1795,7 @@ export function drawWeaponEffects() {
     // Center core
     ctx.fillStyle = `rgba(255, 255, 200, ${progress})`;
     ctx.beginPath();
-    ctx.arc(0, 0, 8, 0, TWO_PI);
+    ctx.arc(0, 0, 8 * mobileScale, 0, TWO_PI);
     ctx.fill();
     ctx.restore();
   });
@@ -1787,13 +1808,15 @@ export function drawHeavyWeaponEffects() {
   
   // Singularities (gravity wells / black holes)
   singularities.forEach(singularity => {
-    if (!isVisible(singularity.x, singularity.y, singularity.radius)) return;
+    const scaledRadius = singularity.radius * mobileScale;
+    if (!isVisible(singularity.x, singularity.y, scaledRadius)) return;
     
     const progress = 1 - (singularity.duration / singularity.maxDuration);
     const pulse = Math.sin(now * 0.01) * 0.2 + 0.8;
     
     ctx.save();
     ctx.translate(singularity.x, singularity.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Outer distortion field
     const distortGradient = ctx.createRadialGradient(0, 0, singularity.radius * 0.3, 0, 0, singularity.radius);
@@ -1925,7 +1948,8 @@ export function drawHeavyWeaponEffects() {
   
   // Shockwaves (EMP pulse)
   shockwaves.forEach(shockwave => {
-    if (!isVisible(shockwave.x, shockwave.y, shockwave.radius)) return;
+    const scaledRadius = shockwave.radius * mobileScale;
+    if (!isVisible(shockwave.x, shockwave.y, scaledRadius)) return;
     
     const progress = 1 - (shockwave.duration / shockwave.maxDuration);
     const expandProgress = Math.min(1, progress / 0.3);
@@ -1933,6 +1957,7 @@ export function drawHeavyWeaponEffects() {
     
     ctx.save();
     ctx.translate(shockwave.x, shockwave.y);
+    ctx.scale(mobileScale, mobileScale);
     
     // Main shockwave ring
     ctx.strokeStyle = `rgba(200, 100, 255, ${0.8 * fadeAlpha})`;
@@ -2003,13 +2028,13 @@ export function drawHeavyWeaponEffects() {
 // Draw spawn indicator (OPTIMIZED)
 export function drawSpawnIndicator() {
   if (!spawnIndicator) return;
-  if (!isVisible(spawnIndicator.x, spawnIndicator.y, 80)) return;
+  if (!isVisible(spawnIndicator.x, spawnIndicator.y, 80 * mobileScale)) return;
   
   const TWO_PI = Math.PI * 2;
   const progress = spawnIndicator.duration / spawnIndicator.maxDuration;
   const alpha = progress;
   const pulse = Math.sin(progress * Math.PI * 4) * 0.3 + 0.7;
-  const radius = 52 + pulse * 26;
+  const radius = (52 + pulse * 26) * mobileScale;
   
   ctx.save();
   ctx.translate(spawnIndicator.x, spawnIndicator.y);
@@ -2053,7 +2078,7 @@ export function drawUserExplosion() {
   const TWO_PI = Math.PI * 2;
   const progress = 1 - (userExplosion.duration / userExplosion.maxDuration);
   const alpha = 1 - progress;
-  const radius = userExplosion.radius;
+  const radius = userExplosion.radius * mobileScale;
   
   ctx.save();
   ctx.translate(userExplosion.x, userExplosion.y);
@@ -2114,7 +2139,7 @@ export function drawUserTrail() {
   if (!userIcon || userTrail.length === 0) return;
   
   const TWO_PI = Math.PI * 2;
-  const baseSize = 4;
+  const baseSize = 4 * mobileScale;
   
   ctx.save();
   
@@ -2199,9 +2224,11 @@ export function drawUserIcon() {
   const TWO_PI = Math.PI * 2;
   const healthRatio = userIcon.health / 100;
   const now = Date.now();
+  const scaledRadius = userIcon.radius * mobileScale;
   
   ctx.save();
   ctx.translate(userIcon.x, userIcon.y);
+  ctx.scale(mobileScale, mobileScale);
   
   // Health bar
   const barWidth = 20;

@@ -3,7 +3,7 @@
 // ========================================
 
 import { initAudioContext } from './audio.js';
-import { shoot, useSpecialWeapon, cycleWeapon } from './combat.js';
+import { shoot, useSpecialWeapon, cycleWeapon, useHeavyWeapon, useDefensiveWeapon } from './combat.js';
 
 // Touch state
 let joystickActive = false;
@@ -38,6 +38,8 @@ let joystickThumbEl = null;
 let fireBtn = null;
 let specialBtn = null;
 let cycleBtn = null;
+let heavyBtn = null;
+let defensiveBtn = null;
 
 // Check if device supports touch
 export function isTouchDevice() {
@@ -56,6 +58,8 @@ export function initTouchControls() {
   fireBtn = document.getElementById('touchFire');
   specialBtn = document.getElementById('touchSpecial');
   cycleBtn = document.getElementById('touchCycle');
+  heavyBtn = document.getElementById('touchHeavy');
+  defensiveBtn = document.getElementById('touchDefensive');
   
   if (!touchControlsEl) return;
   
@@ -89,6 +93,18 @@ export function initTouchControls() {
     cycleBtn.addEventListener('touchstart', handleCycleStart, { passive: false });
     cycleBtn.addEventListener('touchend', handleCycleEnd, { passive: false });
     cycleBtn.addEventListener('touchcancel', handleCycleEnd, { passive: false });
+  }
+  
+  if (heavyBtn) {
+    heavyBtn.addEventListener('touchstart', handleHeavyStart, { passive: false });
+    heavyBtn.addEventListener('touchend', handleHeavyEnd, { passive: false });
+    heavyBtn.addEventListener('touchcancel', handleHeavyEnd, { passive: false });
+  }
+  
+  if (defensiveBtn) {
+    defensiveBtn.addEventListener('touchstart', handleDefensiveStart, { passive: false });
+    defensiveBtn.addEventListener('touchend', handleDefensiveEnd, { passive: false });
+    defensiveBtn.addEventListener('touchcancel', handleDefensiveEnd, { passive: false });
   }
   
   // Prevent default touch behaviors on canvas
@@ -272,6 +288,32 @@ function handleCycleStart(e) {
 function handleCycleEnd(e) {
   e.preventDefault();
   touchInput.cycle = false;
+}
+
+// Heavy weapon button (B key equivalent)
+function handleHeavyStart(e) {
+  e.preventDefault();
+  initAudioContext();
+  
+  const userIcon = userIconRef ? userIconRef() : null;
+  useHeavyWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+}
+
+function handleHeavyEnd(e) {
+  e.preventDefault();
+}
+
+// Defensive weapon button (C key equivalent)
+function handleDefensiveStart(e) {
+  e.preventDefault();
+  initAudioContext();
+  
+  const userIcon = userIconRef ? userIconRef() : null;
+  useDefensiveWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+}
+
+function handleDefensiveEnd(e) {
+  e.preventDefault();
 }
 
 // ========================================

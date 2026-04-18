@@ -2,6 +2,12 @@
 
 This folder contains documentation and learnings from developing the Bee Brave game. It serves as a reference to avoid re-evaluating the codebase repeatedly.
 
+## Agent / contributor rules (concise)
+
+Prescriptive, task-oriented notes live in **`rules/`** (architecture, code style, security, performance, UI/input). Start there for “how should I implement this?”; use the longer docs below for system deep dives.
+
+**Session entry + token strategy:** repo root **[`../AGENT-INDEX.md`](../AGENT-INDEX.md)** (attach at chat start).
+
 ## Contents
 
 - `architecture.md` - Overall game architecture and file structure

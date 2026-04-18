@@ -16,6 +16,11 @@ import { bees } from './bees.js';
 import { shoot, useSpecialWeapon, cycleWeapon, useHeavyWeapon, useDefensiveWeapon, isUserShielded } from './combat.js';
 import { touchInput } from './touch.js';
 import { spawnExplosionParticles } from './particles.js';
+import {
+  getRemapListenActionId,
+  anyCodePressedForAction,
+  codeBelongsToAction
+} from './keybinds.js';
 
 // Low health warning state
 const LOW_HEALTH_THRESHOLD = 30;
@@ -29,13 +34,13 @@ export let userTrail = [];
 let lastTrailX = null;
 let lastTrailY = null;
 
-// Input state
-const keys = {};
-let spacePressed = false;
-let vKeyPressed = false;
-let shiftKeyPressed = false;
-let bKeyPressed = false;
-let cKeyPressed = false;
+// Input state (KeyboardEvent.code → held)
+const pressedCodes = {};
+let shootEdgeHeld = false;
+let specialEdgeHeld = false;
+let cycleEdgeHeld = false;
+let heavyEdgeHeld = false;
+let defensiveEdgeHeld = false;
 
 // Game state references (set by game.js)
 let gameStartedRef = { value: false };
@@ -51,80 +56,88 @@ export function setGameStateRefs(started, over, restartFn, onGameOver = null) {
   onGameOverFn = onGameOver;
 }
 
+function shouldIgnoreGameKeyEvent(e) {
+  if (getRemapListenActionId()) return true;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+    return true;
+  }
+  return false;
+}
+
 // Initialize input handlers
 export function initInput() {
   window.addEventListener('keydown', (e) => {
+    if (shouldIgnoreGameKeyEvent(e)) return;
     initAudioContext();
-    const k = e.key.toLowerCase();
-    keys[k] = true;
-    if (e.key === 'ArrowUp') keys['arrowup'] = true;
-    if (e.key === 'ArrowDown') keys['arrowdown'] = true;
-    if (e.key === 'ArrowLeft') keys['arrowleft'] = true;
-    if (e.key === 'ArrowRight') keys['arrowright'] = true;
-    if (e.key === ' ') {
-      e.preventDefault();
-      if (!spacePressed) {
-        spacePressed = true;
-        shoot(userIcon, gameStartedRef.value);
+    const code = e.code;
+    pressedCodes[code] = true;
+
+    if (!e.repeat) {
+      if (codeBelongsToAction('shoot', code)) {
+        if (code === 'Space') e.preventDefault();
+        if (!shootEdgeHeld) {
+          shootEdgeHeld = true;
+          shoot(userIcon, gameStartedRef.value);
+        }
       }
-    }
-    if (e.key.toLowerCase() === 'v') {
-      e.preventDefault();
-      if (!vKeyPressed) {
-        vKeyPressed = true;
-        useSpecialWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+      if (codeBelongsToAction('special', code)) {
+        e.preventDefault();
+        if (!specialEdgeHeld) {
+          specialEdgeHeld = true;
+          useSpecialWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+        }
       }
-    }
-    if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-      e.preventDefault();
-      if (!shiftKeyPressed) {
-        shiftKeyPressed = true;
-        cycleWeapon();
+      if (codeBelongsToAction('cycle', code)) {
+        e.preventDefault();
+        if (!cycleEdgeHeld) {
+          cycleEdgeHeld = true;
+          cycleWeapon();
+        }
       }
-    }
-    if (e.key.toLowerCase() === 'b') {
-      e.preventDefault();
-      if (!bKeyPressed) {
-        bKeyPressed = true;
-        useHeavyWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+      if (codeBelongsToAction('heavy', code)) {
+        e.preventDefault();
+        if (!heavyEdgeHeld) {
+          heavyEdgeHeld = true;
+          useHeavyWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+        }
       }
-    }
-    if (e.key.toLowerCase() === 'c') {
-      e.preventDefault();
-      if (!cKeyPressed) {
-        cKeyPressed = true;
-        useDefensiveWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+      if (codeBelongsToAction('defensive', code)) {
+        e.preventDefault();
+        if (!defensiveEdgeHeld) {
+          defensiveEdgeHeld = true;
+          useDefensiveWeapon(userIcon, gameOverRef.value, gameStartedRef.value);
+        }
       }
     }
   });
 
   window.addEventListener('keyup', (e) => {
-    const k = e.key.toLowerCase();
-    keys[k] = false;
-    if (e.key === 'ArrowUp') keys['arrowup'] = false;
-    if (e.key === 'ArrowDown') keys['arrowdown'] = false;
-    if (e.key === 'ArrowLeft') keys['arrowleft'] = false;
-    if (e.key === 'ArrowRight') keys['arrowright'] = false;
-    if (e.key === ' ') {
-      spacePressed = false;
+    if (shouldIgnoreGameKeyEvent(e)) return;
+    const code = e.code;
+    pressedCodes[code] = false;
+
+    if (!anyCodePressedForAction('shoot', pressedCodes)) {
+      shootEdgeHeld = false;
     }
-    if (e.key.toLowerCase() === 'v') {
-      vKeyPressed = false;
+    if (!anyCodePressedForAction('special', pressedCodes)) {
+      specialEdgeHeld = false;
     }
-    if (e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-      shiftKeyPressed = false;
+    if (!anyCodePressedForAction('cycle', pressedCodes)) {
+      cycleEdgeHeld = false;
     }
-    if (e.key.toLowerCase() === 'b') {
-      bKeyPressed = false;
+    if (!anyCodePressedForAction('heavy', pressedCodes)) {
+      heavyEdgeHeld = false;
     }
-    if (e.key.toLowerCase() === 'c') {
-      cKeyPressed = false;
+    if (!anyCodePressedForAction('defensive', pressedCodes)) {
+      defensiveEdgeHeld = false;
     }
   });
 
-  // Allow restart with R key
   window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'r' && gameOverRef.value && restartGameFn) {
+    if (shouldIgnoreGameKeyEvent(e)) return;
+    if (e.repeat) return;
+    if (codeBelongsToAction('restart', e.code) && gameOverRef.value && restartGameFn) {
       restartGameFn();
     }
   });
@@ -177,19 +190,19 @@ export function moveUserIcon(dt) {
   let dx = 0, dy = 0;
   
   // Keyboard input
-  if (keys['w'] || keys['arrowup']) {
+  if (anyCodePressedForAction('moveUp', pressedCodes)) {
     userIcon.y -= step;
     dy -= 1;
   }
-  if (keys['s'] || keys['x'] || keys['arrowdown']) {
+  if (anyCodePressedForAction('moveDown', pressedCodes)) {
     userIcon.y += step;
     dy += 1;
   }
-  if (keys['a'] || keys['arrowleft']) {
+  if (anyCodePressedForAction('moveLeft', pressedCodes)) {
     userIcon.x -= step;
     dx -= 1;
   }
-  if (keys['d'] || keys['arrowright']) {
+  if (anyCodePressedForAction('moveRight', pressedCodes)) {
     userIcon.x += step;
     dx += 1;
   }

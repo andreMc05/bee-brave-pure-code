@@ -1,21 +1,29 @@
 # Bee Brave - Project Rules
 
+## AI / session routing
+- **Start of chat:** `AGENT-INDEX.md` — search map, token/context strategy, task → files.
+- **Task slices:** `dev-knowledge/rules/` (`architecture`, `code-style`, `security`, `performance`, `ui-input`).
+
 ## Overview
 Canvas-based HTML5 game where player defends a beehive. Pure JavaScript (ES modules), no frameworks.
 
 ## File Structure
 ```
 js/
-├── config.js   → Constants, canvas setup, render cache
-├── game.js     → Main loop, initialization, state management
-├── bees.js     → Bee AI (regular + hunters), dropship system
-├── cells.js    → Hexagonal hive cells (axial coords)
-├── combat.js   → Bullets, special weapons, damage
-├── draw.js     → All rendering (1400+ lines)
-├── resources.js→ Resource spot management
-├── ui.js       → UI updates
-├── user.js     → Player movement, input, collision
-├── audio.js    → Sound effects (Web Audio API)
+├── config.js    → Constants, canvas setup, render cache
+├── game.js      → Main loop, initialization, state management
+├── bees.js      → Bee AI (regular + hunters), dropship system
+├── cells.js     → Hexagonal hive cells (axial coords)
+├── combat.js    → Bullets, special weapons, damage
+├── draw.js      → All rendering (1400+ lines)
+├── resources.js → Resource spot management
+├── ui.js        → UI updates, sliders, keybind table
+├── user.js      → Player movement, keyboard input, collision
+├── keybinds.js  → Saved keyboard bindings (localStorage)
+├── touch.js     → Mobile joystick / touch buttons
+├── audio.js     → Sound effects (Web Audio API)
+├── music.js     → Background music
+└── particles.js → Particle effects
 ```
 
 ## Key Patterns
