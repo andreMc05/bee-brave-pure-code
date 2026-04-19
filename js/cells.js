@@ -15,6 +15,7 @@ import {
 } from './config.js';
 import { playCellExplosionSound } from './audio.js';
 import { spawnExplosionParticles } from './particles.js';
+import { spawnBullet } from './bullets.js';
 
 // Cell storage
 export let cells = [{ q: 0, r: 0, buildProg: 1, honey: 0, hp: CELL_MAX_HP, maxHp: CELL_MAX_HP, fireCooldown: 0 }];
@@ -39,8 +40,8 @@ export function hasCell(q, r) {
 export function isPointInHex(px, py, hexCenterX, hexCenterY, hexSize) {
   const dx = px - hexCenterX;
   const dy = py - hexCenterY;
-  const distFromCenter = Math.hypot(dx, dy);
-  return distFromCenter <= hexSize;
+  const distSq = dx * dx + dy * dy;
+  return distSq <= hexSize * hexSize;
 }
 
 // Get cell at a specific point
@@ -109,9 +110,10 @@ export function updateCells(dt, now, userIcon, bullets, gameStartTime, HIVE_PROT
     // Hive cell firing logic
     if (userIcon && c.buildProg >= 1 && c.honey >= honeyPerCell * 0.5 && c.fireCooldown <= 0) {
       const cellPos = hexToPixel(c.q, c.r);
-      const distToUser = Math.hypot(cellPos.x - userIcon.x, cellPos.y - userIcon.y);
-      
-      if (distToUser <= HIVE_FIRE_RANGE) {
+      const dxU = cellPos.x - userIcon.x;
+      const dyU = cellPos.y - userIcon.y;
+      const rangeSq = HIVE_FIRE_RANGE * HIVE_FIRE_RANGE;
+      if (dxU * dxU + dyU * dyU <= rangeSq) {
         const baseAngle = Math.atan2(userIcon.y - cellPos.y, userIcon.x - cellPos.x);
         
         // Improve accuracy if user is stationary
@@ -128,7 +130,7 @@ export function updateCells(dt, now, userIcon, bullets, gameStartTime, HIVE_PROT
         const hiveBulletRadius = 5;
         const hiveBulletMaxDistance = 600;
         
-        bullets.push({
+        spawnBullet({
           x: cellPos.x,
           y: cellPos.y,
           vx: Math.cos(angle) * hiveBulletSpeed,
@@ -137,7 +139,9 @@ export function updateCells(dt, now, userIcon, bullets, gameStartTime, HIVE_PROT
           maxDistance: hiveBulletMaxDistance,
           distanceTraveled: 0,
           radius: hiveBulletRadius,
-          isHiveBullet: true
+          isHiveBullet: true,
+          isHunterLaser: false,
+          damage: 0
         });
         
         c.fireCooldown = HIVE_FIRE_COOLDOWN;

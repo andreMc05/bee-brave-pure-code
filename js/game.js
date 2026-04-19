@@ -60,6 +60,10 @@ import { initUI, updateGameUI, setGameFunctions, resetUICache, showFinalScore } 
 import { updateParticles, resetParticles } from './particles.js';
 import { initTouchControls, setTouchGameRefs, resetTouchInput } from './touch.js';
 
+// Cached in-game settings inputs (avoid DOM queries every frame during combat)
+let priorityPercentInputEl = null;
+let maxColonySizeInputEl = null;
+
 // Game state
 let gameOver = false;
 let gameStarted = false;
@@ -129,8 +133,9 @@ function update(now, dt) {
   updateCells(dt, now, userIcon, bullets, gameStartTime, HIVE_PROTECTION_DURATION);
   
   // Update bees
-  const preferHighPct = +document.getElementById('priorityPercent').value;
-  updateBees(dt, now, preferHighPct, userIcon);
+  const preferHighPct = priorityPercentInputEl ? +priorityPercentInputEl.value : 50;
+  const maxColonySize = maxColonySizeInputEl ? +maxColonySizeInputEl.value : 200;
+  updateBees(dt, now, preferHighPct, maxColonySize, userIcon);
   
   // Update score
   score = destroyedBees * 5 + destroyedCells * 10;
@@ -388,6 +393,9 @@ function initGame() {
   
   // Initialize UI
   initUI();
+
+  priorityPercentInputEl = document.getElementById('priorityPercent');
+  maxColonySizeInputEl = document.getElementById('maxColonySize');
   
   // Initialize landing screen
   initLandingScreen();

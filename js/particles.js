@@ -3,12 +3,162 @@
 // ========================================
 
 import { w, h } from './config.js';
+import { ObjectPool } from './object-pool.js';
 
 // Particle storage
 export let particles = [];
 
 // Impact effects storage (short-lived visual flashes/rings)
 export let impactEffects = [];
+
+const IMPACT_EFFECT_CONFIGS = {
+  bulletBee: {
+    type: 'flash',
+    color: '#FFD700',
+    maxRadius: 12,
+    duration: 100
+  },
+  bulletShield: {
+    type: 'ring',
+    color: '#00FFFF',
+    maxRadius: 20,
+    duration: 150,
+    lineWidth: 2
+  },
+  bulletArmor: {
+    type: 'flash',
+    color: '#FF6600',
+    maxRadius: 15,
+    duration: 120
+  },
+  bulletCell: {
+    type: 'splash',
+    color: '#FFD700',
+    maxRadius: 18,
+    duration: 180
+  },
+  hiveShield: {
+    type: 'ring',
+    color: '#00BFFF',
+    maxRadius: 25,
+    duration: 200,
+    lineWidth: 3
+  },
+  hiveHealth: {
+    type: 'burst',
+    color: '#FF0000',
+    maxRadius: 30,
+    duration: 250
+  },
+  laserShield: {
+    type: 'ring',
+    color: '#FF00FF',
+    maxRadius: 22,
+    duration: 150,
+    lineWidth: 2
+  },
+  laserHealth: {
+    type: 'burst',
+    color: '#FF1493',
+    maxRadius: 28,
+    duration: 200
+  }
+};
+
+function createParticleShell() {
+  return {
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    size: 0,
+    originalSize: 0,
+    color: '#ffffff',
+    lifetime: 0,
+    maxLifetime: 0,
+    gravity: 0,
+    friction: 1,
+    glow: false,
+    sparkle: false,
+    trails: false,
+    debris: false,
+    rotation: 0,
+    rotationSpeed: 0,
+    trail: null,
+    fromImpact: false
+  };
+}
+
+function createImpactParticleShell() {
+  return {
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    size: 0,
+    originalSize: 0,
+    color: '#ffffff',
+    lifetime: 0,
+    maxLifetime: 0,
+    gravity: 0,
+    friction: 1,
+    glow: true,
+    sparkle: false,
+    trails: false,
+    debris: false,
+    rotation: 0,
+    rotationSpeed: 0,
+    trail: null,
+    fromImpact: true
+  };
+}
+
+function createImpactEffectShell() {
+  return {
+    x: 0,
+    y: 0,
+    type: 'flash',
+    color: '#ffffff',
+    maxRadius: 0,
+    radius: 0,
+    duration: 0,
+    maxDuration: 0,
+    lineWidth: 2,
+    alpha: 1
+  };
+}
+
+const particlePool = new ObjectPool(createParticleShell);
+const impactParticlePool = new ObjectPool(createImpactParticleShell);
+const impactEffectPool = new ObjectPool(createImpactEffectShell);
+
+function releaseParticle(p) {
+  if (p.trail) {
+    p.trail.length = 0;
+  }
+  particlePool.release(p);
+}
+
+function releaseImpactParticle(p) {
+  impactParticlePool.release(p);
+}
+
+function retireParticleAt(idx) {
+  const p = particles[idx];
+  if (p.fromImpact) {
+    impactParticlePool.release(p);
+  } else {
+    releaseParticle(p);
+  }
+  particles[idx] = particles[particles.length - 1];
+  particles.pop();
+}
+
+function swapRemoveImpactEffect(idx) {
+  impactEffectPool.release(impactEffects[idx]);
+  impactEffects[idx] = impactEffects[impactEffects.length - 1];
+  impactEffects.pop();
+}
 
 // Particle types with different visual properties
 const PARTICLE_PRESETS = {
@@ -165,67 +315,107 @@ const IMPACT_PRESETS = {
   }
 };
 
-// Create a single particle
-function createParticle(x, y, preset, angleOverride = null) {
+function initExplosionParticle(p, x, y, preset, angleOverride = null) {
   const config = PARTICLE_PRESETS[preset];
   const angle = angleOverride !== null ? angleOverride : Math.random() * Math.PI * 2;
   const speed = config.minSpeed + Math.random() * (config.maxSpeed - config.minSpeed);
   const size = config.minSize + Math.random() * (config.maxSize - config.minSize);
-  
-  return {
-    x,
-    y,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    size,
-    originalSize: size,
-    color: config.colors[Math.floor(Math.random() * config.colors.length)],
-    lifetime: config.lifetime * (0.7 + Math.random() * 0.6),
-    maxLifetime: config.lifetime * (0.7 + Math.random() * 0.6),
-    gravity: config.gravity,
-    friction: config.friction,
-    glow: config.glow,
-    sparkle: config.sparkle && Math.random() > 0.5,
-    trails: config.trails && Math.random() > 0.6,
-    debris: config.debris,
-    rotation: Math.random() * Math.PI * 2,
-    rotationSpeed: (Math.random() - 0.5) * 0.3,
-    // Trail history for particles with trails
-    trail: config.trails ? [] : null
-  };
+
+  p.x = x;
+  p.y = y;
+  p.vx = Math.cos(angle) * speed;
+  p.vy = Math.sin(angle) * speed;
+  p.size = size;
+  p.originalSize = size;
+  p.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+  p.lifetime = config.lifetime * (0.7 + Math.random() * 0.6);
+  p.maxLifetime = p.lifetime;
+  p.gravity = config.gravity;
+  p.friction = config.friction;
+  p.glow = config.glow;
+  p.sparkle = config.sparkle && Math.random() > 0.5;
+  p.trails = config.trails && Math.random() > 0.6;
+  p.debris = !!config.debris;
+  p.rotation = Math.random() * Math.PI * 2;
+  p.rotationSpeed = (Math.random() - 0.5) * 0.3;
+  p.fromImpact = false;
+  if (config.trails) {
+    if (!p.trail) p.trail = [];
+    else p.trail.length = 0;
+  } else {
+    p.trail = null;
+  }
+}
+
+function initImpactParticle(p, x, y, preset, angleOverride = null, incomingAngle = null) {
+  const config = IMPACT_PRESETS[preset];
+  if (!config) return false;
+
+  let angle;
+  if (incomingAngle !== null && angleOverride === null) {
+    const reflectAngle = incomingAngle + Math.PI;
+    angle = reflectAngle + (Math.random() - 0.5) * Math.PI * 0.8;
+  } else {
+    angle = angleOverride !== null ? angleOverride : Math.random() * Math.PI * 2;
+  }
+
+  const speed = config.minSpeed + Math.random() * (config.maxSpeed - config.minSpeed);
+  const size = config.minSize + Math.random() * (config.maxSize - config.minSize);
+
+  p.x = x;
+  p.y = y;
+  p.vx = Math.cos(angle) * speed;
+  p.vy = Math.sin(angle) * speed;
+  p.size = size;
+  p.originalSize = size;
+  p.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+  p.lifetime = config.lifetime * (0.6 + Math.random() * 0.8);
+  p.maxLifetime = p.lifetime;
+  p.gravity = config.gravity;
+  p.friction = config.friction;
+  p.glow = true;
+  p.sparkle = Math.random() > 0.7;
+  p.trails = false;
+  p.debris = false;
+  p.rotation = 0;
+  p.rotationSpeed = 0;
+  p.trail = null;
+  p.fromImpact = true;
+  return true;
 }
 
 // Spawn explosion particles
 export function spawnExplosionParticles(x, y, type, count = null) {
   const config = PARTICLE_PRESETS[type];
   if (!config) return;
-  
-  // Default particle counts based on explosion type
+
   const defaultCounts = {
     bee: 12,
     hunter: 25,
     cell: 18,
     user: 35
   };
-  
+
   const particleCount = count || defaultCounts[type] || 15;
-  
-  // Create burst particles (radial)
+
   for (let i = 0; i < particleCount; i++) {
-    const angle = (Math.PI * 2 * i / particleCount) + (Math.random() - 0.5) * 0.5;
-    particles.push(createParticle(x, y, type, angle));
+    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+    const p = particlePool.acquire();
+    initExplosionParticle(p, x, y, type, angle);
+    particles.push(p);
   }
-  
-  // Add some extra random scatter particles
+
   const scatterCount = Math.floor(particleCount * 0.4);
   for (let i = 0; i < scatterCount; i++) {
-    particles.push(createParticle(x, y, type));
+    const p = particlePool.acquire();
+    initExplosionParticle(p, x, y, type);
+    particles.push(p);
   }
-  
-  // For hunter/user explosions, add some slower "ember" particles
+
   if (type === 'hunter' || type === 'user') {
     for (let i = 0; i < 8; i++) {
-      const ember = createParticle(x, y, type);
+      const ember = particlePool.acquire();
+      initExplosionParticle(ember, x, y, type);
       ember.vx *= 0.3;
       ember.vy *= 0.3;
       ember.lifetime *= 1.5;
@@ -236,11 +426,11 @@ export function spawnExplosionParticles(x, y, type, count = null) {
       particles.push(ember);
     }
   }
-  
-  // For cell explosions, add chunky debris
+
   if (type === 'cell') {
     for (let i = 0; i < 6; i++) {
-      const chunk = createParticle(x, y, type);
+      const chunk = particlePool.acquire();
+      initExplosionParticle(chunk, x, y, type);
       chunk.vx *= 0.5;
       chunk.vy *= 0.5;
       chunk.size *= 1.8;
@@ -252,202 +442,117 @@ export function spawnExplosionParticles(x, y, type, count = null) {
   }
 }
 
-// Create an impact particle
-function createImpactParticle(x, y, preset, angleOverride = null, incomingAngle = null) {
-  const config = IMPACT_PRESETS[preset];
-  if (!config) return null;
-  
-  // If incoming angle provided, bias particles away from it (reflection)
-  let angle;
-  if (incomingAngle !== null && angleOverride === null) {
-    // Reflect roughly opposite to incoming direction with spread
-    const reflectAngle = incomingAngle + Math.PI;
-    angle = reflectAngle + (Math.random() - 0.5) * Math.PI * 0.8;
-  } else {
-    angle = angleOverride !== null ? angleOverride : Math.random() * Math.PI * 2;
-  }
-  
-  const speed = config.minSpeed + Math.random() * (config.maxSpeed - config.minSpeed);
-  const size = config.minSize + Math.random() * (config.maxSize - config.minSize);
-  
-  return {
-    x,
-    y,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    size,
-    originalSize: size,
-    color: config.colors[Math.floor(Math.random() * config.colors.length)],
-    lifetime: config.lifetime * (0.6 + Math.random() * 0.8),
-    maxLifetime: config.lifetime * (0.6 + Math.random() * 0.8),
-    gravity: config.gravity,
-    friction: config.friction,
-    glow: true,
-    sparkle: Math.random() > 0.7,
-    trails: false,
-    debris: false,
-    rotation: 0,
-    rotationSpeed: 0,
-    trail: null
-  };
-}
-
 // Spawn impact particles at collision point
 export function spawnImpactParticles(x, y, type, incomingAngle = null) {
   const config = IMPACT_PRESETS[type];
   if (!config) return;
-  
+
   const count = config.count || 8;
-  
-  // Create burst particles
+
   for (let i = 0; i < count; i++) {
-    const particle = createImpactParticle(x, y, type, null, incomingAngle);
-    if (particle) particles.push(particle);
+    const p = impactParticlePool.acquire();
+    if (initImpactParticle(p, x, y, type, null, incomingAngle)) {
+      particles.push(p);
+    } else {
+      impactParticlePool.release(p);
+    }
   }
-  
-  // Create impact effect (flash/ring)
+
   createImpactEffect(x, y, type);
 }
 
-// Create visual impact effect (flash, ring, etc.)
 function createImpactEffect(x, y, type) {
-  const effectConfigs = {
-    bulletBee: {
-      type: 'flash',
-      color: '#FFD700',
-      maxRadius: 12,
-      duration: 100
-    },
-    bulletShield: {
-      type: 'ring',
-      color: '#00FFFF',
-      maxRadius: 20,
-      duration: 150,
-      lineWidth: 2
-    },
-    bulletArmor: {
-      type: 'flash',
-      color: '#FF6600',
-      maxRadius: 15,
-      duration: 120
-    },
-    bulletCell: {
-      type: 'splash',
-      color: '#FFD700',
-      maxRadius: 18,
-      duration: 180
-    },
-    hiveShield: {
-      type: 'ring',
-      color: '#00BFFF',
-      maxRadius: 25,
-      duration: 200,
-      lineWidth: 3
-    },
-    hiveHealth: {
-      type: 'burst',
-      color: '#FF0000',
-      maxRadius: 30,
-      duration: 250
-    },
-    laserShield: {
-      type: 'ring',
-      color: '#FF00FF',
-      maxRadius: 22,
-      duration: 150,
-      lineWidth: 2
-    },
-    laserHealth: {
-      type: 'burst',
-      color: '#FF1493',
-      maxRadius: 28,
-      duration: 200
-    }
-  };
-  
-  const config = effectConfigs[type];
+  const config = IMPACT_EFFECT_CONFIGS[type];
   if (!config) return;
-  
-  impactEffects.push({
-    x,
-    y,
-    type: config.type,
-    color: config.color,
-    maxRadius: config.maxRadius,
-    radius: 0,
-    duration: config.duration,
-    maxDuration: config.duration,
-    lineWidth: config.lineWidth || 2,
-    alpha: 1
-  });
+
+  const e = impactEffectPool.acquire();
+  e.x = x;
+  e.y = y;
+  e.type = config.type;
+  e.color = config.color;
+  e.maxRadius = config.maxRadius;
+  e.radius = 0;
+  e.duration = config.duration;
+  e.maxDuration = config.duration;
+  e.lineWidth = config.lineWidth || 2;
+  e.alpha = 1;
+  impactEffects.push(e);
 }
 
 // Update all particles
 export function updateParticles(dt) {
   const dtNorm = dt * 0.06;
-  
-  // Update impact effects
+
   for (let i = impactEffects.length - 1; i >= 0; i--) {
     const effect = impactEffects[i];
     effect.duration -= dt;
-    
-    const progress = 1 - (effect.duration / effect.maxDuration);
+
+    const progress = 1 - effect.duration / effect.maxDuration;
     effect.radius = effect.maxRadius * progress;
     effect.alpha = 1 - progress;
-    
+
     if (effect.duration <= 0) {
-      impactEffects.splice(i, 1);
+      swapRemoveImpactEffect(i);
     }
   }
-  
+
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    
-    // Update trail history
+
     if (p.trail) {
       p.trail.unshift({ x: p.x, y: p.y, alpha: 1 });
       if (p.trail.length > 5) p.trail.pop();
-      // Fade trail points
-      p.trail.forEach((point, idx) => {
-        point.alpha = 1 - (idx / p.trail.length);
-      });
+      const len = p.trail.length;
+      for (let t = 0; t < len; t++) {
+        p.trail[t].alpha = 1 - t / len;
+      }
     }
-    
-    // Apply physics
+
     p.vy += p.gravity * dtNorm;
     p.vx *= p.friction;
     p.vy *= p.friction;
-    
+
     p.x += p.vx * dtNorm;
     p.y += p.vy * dtNorm;
-    
-    // Update rotation for debris
+
     if (p.debris) {
       p.rotation += p.rotationSpeed * dtNorm;
     }
-    
-    // Decrease lifetime
+
     p.lifetime -= dt;
-    
-    // Calculate life progress for size/alpha
+
     const lifeProgress = p.lifetime / p.maxLifetime;
-    
-    // Shrink as particle dies
     p.size = p.originalSize * Math.max(0, lifeProgress);
-    
-    // Remove dead particles or those off-screen
-    if (p.lifetime <= 0 || p.size < 0.5 ||
-        p.x < -50 || p.x > w + 50 || 
-        p.y < -50 || p.y > h + 50) {
-      particles.splice(i, 1);
+
+    if (
+      p.lifetime <= 0 ||
+      p.size < 0.5 ||
+      p.x < -50 ||
+      p.x > w + 50 ||
+      p.y < -50 ||
+      p.y > h + 50
+    ) {
+      retireParticleAt(i);
     }
   }
 }
 
 // Reset particles
 export function resetParticles() {
-  particles = [];
-  impactEffects = [];
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (p.fromImpact) {
+      impactParticlePool.release(p);
+    } else {
+      releaseParticle(p);
+    }
+  }
+  particles.length = 0;
+
+  for (let i = 0; i < impactEffects.length; i++) {
+    impactEffectPool.release(impactEffects[i]);
+  }
+  impactEffects.length = 0;
 }
 
 // Get particle count (for debugging/stats)

@@ -31,7 +31,8 @@ import { spawnExplosionParticles } from './particles.js';
 import { pickResourceForBee, areAllResourcesDepleted, updateTotalResources } from './resources.js';
 import { cells, hiveHoney, addHiveHoney } from './cells.js';
 import { isUserCloaked } from './combat.js';
-
+import { ObjectPool } from './object-pool.js';
+import { spawnBullet } from './bullets.js';
 
 // Bee storage
 export let bees = [];
@@ -46,6 +47,30 @@ export let beeExplosions = [];
 // Destroyed counts
 export let destroyedBees = 0;
 export let destroyedCells = 0;
+
+function countBeesInState(state) {
+  let n = 0;
+  for (let i = 0; i < bees.length; i++) {
+    if (bees[i].state === state) n++;
+  }
+  return n;
+}
+
+function countHuntBeesUpTo(maxIndexInclusive) {
+  let n = 0;
+  for (let i = 0; i <= maxIndexInclusive; i++) {
+    if (bees[i].state === 'hunt') n++;
+  }
+  return n;
+}
+
+const beeExplosionPool = new ObjectPool(() => ({
+  x: 0,
+  y: 0,
+  duration: 300,
+  maxDuration: 300,
+  radius: 3
+}));
 
 // Create a regular bee
 export function makeBee() {
@@ -122,13 +147,13 @@ export function createHunterExplosion(x, y) {
 
 // Create smaller explosion when regular bee is destroyed
 export function createBeeExplosion(x, y) {
-  beeExplosions.push({
-    x: x,
-    y: y,
-    duration: 300,
-    maxDuration: 300,
-    radius: 3
-  });
+  const exp = beeExplosionPool.acquire();
+  exp.x = x;
+  exp.y = y;
+  exp.duration = 300;
+  exp.maxDuration = 300;
+  exp.radius = 3;
+  beeExplosions.push(exp);
   // Spawn particles for the explosion
   spawnExplosionParticles(x, y, 'bee');
   // Trigger small screen shake for bee explosion
@@ -169,7 +194,7 @@ export function updateDropship(dt) {
   if (dropship.phase === 'arriving') {
     const dx = dropship.targetX - dropship.x;
     const dy = dropship.targetY - dropship.y;
-    const dist = Math.hypot(dx, dy);
+    const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (dist > 5) {
       dropship.x += (dx / dist) * 3 * (dt * 0.06);
@@ -225,7 +250,7 @@ export function updateHunterBees(dt, userIcon, bullets) {
     const frozenMultiplier = hunter.frozen > 0 ? 0.2 : 1.0;
     
     // Move toward user (or wander if cloaked)
-    let dx, dy, dist;
+    let dx, dy;
     if (userCloaked) {
       // Hunter loses track - wander around last known position
       if (!hunter.lastKnownUserPos) {
@@ -240,17 +265,20 @@ export function updateHunterBees(dt, userIcon, bullets) {
       }
       dx = hunter.wanderTarget.x - hunter.x;
       dy = hunter.wanderTarget.y - hunter.y;
-      dist = Math.hypot(dx, dy);
-      if (dist > 0) {
-        hunter.angle = Math.atan2(dy, dx);
-      }
     } else {
       // Normal targeting
       hunter.lastKnownUserPos = { x: userIcon.x, y: userIcon.y };
       hunter.wanderTarget = null;
       dx = userIcon.x - hunter.x;
       dy = userIcon.y - hunter.y;
-      dist = Math.hypot(dx, dy);
+    }
+    const distSq = dx * dx + dy * dy;
+    const dist = distSq > 0 ? Math.sqrt(distSq) : 0;
+    if (userCloaked) {
+      if (dist > 0) {
+        hunter.angle = Math.atan2(dy, dx);
+      }
+    } else {
       hunter.angle = Math.atan2(dy, dx);
     }
     
@@ -273,11 +301,11 @@ export function updateHunterBees(dt, userIcon, bullets) {
     
     // Fire laser (only if user is visible)
     hunter.fireCooldown = Math.max(0, hunter.fireCooldown - dt);
-    if (hunter.fireCooldown <= 0 && dist < 300 && hunter.frozen <= 0 && !userCloaked) {
+    if (hunter.fireCooldown <= 0 && distSq < 90000 && hunter.frozen <= 0 && !userCloaked) {
       const inaccuracy = (Math.random() - 0.5) * 0.15;
       const fireAngle = hunter.angle + inaccuracy;
       
-      bullets.push({
+      spawnBullet({
         x: hunter.x + Math.cos(hunter.angle) * hunter.size,
         y: hunter.y + Math.sin(hunter.angle) * hunter.size,
         vx: Math.cos(fireAngle) * HUNTER_LASER_SPEED,
@@ -286,6 +314,7 @@ export function updateHunterBees(dt, userIcon, bullets) {
         maxDistance: 400,
         distanceTraveled: 0,
         radius: 4,
+        isHiveBullet: false,
         isHunterLaser: true,
         damage: HUNTER_LASER_DAMAGE
       });
@@ -304,9 +333,10 @@ export function updateHunterBees(dt, userIcon, bullets) {
 }
 
 // Update regular bees
-export function updateBees(dt, now, preferHighPct, userIcon) {
+export function updateBees(dt, now, preferHighPct, maxColonySize, userIcon) {
   const allResourcesDepleted = areAllResourcesDepleted();
-  
+  const attackRangeSq = BEE_ATTACK_RANGE * BEE_ATTACK_RANGE;
+
   bees.forEach((bee, beeIndex) => {
     bee.wobble += bee.wobbleSpeed * dt * 0.001;
     
@@ -321,11 +351,14 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
     bee.bobPhase += bee.bobSpeed * dt * 0.001 * frozenMultiplierAnim;
     
     // Check distance to user (cloaked users are invisible to bees)
-    let userDistance = Infinity;
+    let userDistanceSq = Infinity;
     const userCloaked = isUserCloaked();
     if (userIcon && !userCloaked) {
-      userDistance = Math.hypot(bee.x - userIcon.x, bee.y - userIcon.y);
+      const udx = bee.x - userIcon.x;
+      const udy = bee.y - userIcon.y;
+      userDistanceSq = udx * udx + udy * udy;
     }
+    const userDistance = userDistanceSq === Infinity ? Infinity : Math.sqrt(userDistanceSq);
 
     // STRATEGIC HUNTING MODE (disabled when user is cloaked)
     if (allResourcesDepleted && userIcon && !userCloaked) {
@@ -336,8 +369,8 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
       }
       
       if (bee.state === 'hunt') {
-        const totalHunters = bees.filter(b => b.state === 'hunt').length;
-        const hunterIndex = bees.filter((b, i) => b.state === 'hunt' && i <= beeIndex).length - 1;
+        const totalHunters = countBeesInState('hunt');
+        const hunterIndex = countHuntBeesUpTo(beeIndex) - 1;
         
         const baseAngle = Math.atan2(userIcon.y - center.y, userIcon.x - center.x);
         const spreadAngle = (2 * Math.PI * hunterIndex) / Math.max(1, totalHunters);
@@ -371,7 +404,7 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
       bee.target = bee.confusedTarget;
     }
     // Normal attack behavior (disabled when user is cloaked)
-    else if (userIcon && userDistance < BEE_ATTACK_RANGE && !userCloaked) {
+    else if (userIcon && userDistanceSq < attackRangeSq && !userCloaked) {
       if (bee.state === 'forage' || bee.state === 'idle') {
         bee.state = 'attack';
         bee.attackCooldown = 2000;
@@ -410,7 +443,7 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
     const target = bee.target || { x: center.x, y: center.y };
     const dx = target.x - bee.x;
     const dy = target.y - bee.y;
-    const dist = Math.hypot(dx, dy);
+    const dist = Math.sqrt(dx * dx + dy * dy);
     const dirX = dist ? dx / dist : 0;
     const dirY = dist ? dy / dist : 0;
     const wobX = Math.cos(bee.wobble) * 0.8;
@@ -465,7 +498,6 @@ export function updateBees(dt, now, preferHighPct, userIcon) {
   // Check if hive has 3 full cells and add bees
   if (now - lastBeeAdditionTime >= BEE_ADDITION_COOLDOWN) {
     const fullCells = cells.filter(c => c.honey >= honeyPerCell);
-    const maxColonySize = +document.getElementById('maxColonySize').value;
     if (fullCells.length >= 3 && bees.length < maxColonySize) {
       const beesToAdd = Math.min(2, maxColonySize - bees.length);
       for (let i = 0; i < beesToAdd; i++) {
@@ -498,6 +530,7 @@ export function updateExplosions(dt, cellExplosions) {
     exp.radius = 3 + progress * 15;
     
     if (exp.duration <= 0) {
+      beeExplosionPool.release(exp);
       beeExplosions.splice(i, 1);
     }
   }
@@ -522,7 +555,10 @@ export function resetBees() {
   dropship = null;
   lastBeeAdditionTime = 0;
   hunterExplosions = [];
-  beeExplosions = [];
+  for (let i = 0; i < beeExplosions.length; i++) {
+    beeExplosionPool.release(beeExplosions[i]);
+  }
+  beeExplosions.length = 0;
   destroyedBees = 0;
   destroyedCells = 0;
 }

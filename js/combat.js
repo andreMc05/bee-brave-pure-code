@@ -3,6 +3,8 @@
 // ========================================
 
 import { w, h, HEX_SIZE, HONEY_DAMAGE_PER_HIT, triggerScreenShake } from './config.js';
+import { bullets, spawnBullet, releaseBullet, resetBullets, setBullets } from './bullets.js';
+import { SpatialHash } from './spatial-hash.js';
 import { 
   playFireSound, 
   playFreezeSound, 
@@ -29,8 +31,7 @@ import {
 import { cells, getCellAtPoint, hexToPixel, isPointInHex, createCellExplosion } from './cells.js';
 import { spawnImpactParticles } from './particles.js';
 
-// Bullets array
-export let bullets = [];
+export { bullets, spawnBullet, resetBullets, setBullets };
 
 // Special weapons system
 export const weapons = {
@@ -95,7 +96,7 @@ export function shoot(userIcon, gameStarted) {
   
   playFireSound();
   
-  bullets.push({
+  spawnBullet({
     x: userIcon.x,
     y: userIcon.y,
     vx: Math.cos(angle) * speed,
@@ -104,7 +105,9 @@ export function shoot(userIcon, gameStarted) {
     maxDistance: shotDist,
     distanceTraveled: 0,
     radius: 3,
-    isHiveBullet: false
+    isHiveBullet: false,
+    isHunterLaser: false,
+    damage: 0
   });
 }
 
@@ -631,23 +634,50 @@ export function updateWeaponUI() {
   }
 }
 
+const BEE_BULLET_HIT_R = 4;
+const beeHunterSpatial = new SpatialHash(72);
+const BEE_HUNTER_GRID_RANGE = 2;
+
+function swapRemoveBullet(idx) {
+  releaseBullet(bullets[idx]);
+  bullets[idx] = bullets[bullets.length - 1];
+  bullets.pop();
+}
+
 // Update bullets
 export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_DURATION) {
-  bullets = bullets.filter(bullet => {
-    bullet.x += bullet.vx * (dt * 0.06);
-    bullet.y += bullet.vy * (dt * 0.06);
-    bullet.distanceTraveled += Math.hypot(bullet.vx * (dt * 0.06), bullet.vy * (dt * 0.06));
-    
-    // Remove if exceeds distance or off screen
+  const dtStep = dt * 0.06;
+
+  beeHunterSpatial.clear();
+  for (let bi = 0; bi < bees.length; bi++) {
+    const b = bees[bi];
+    beeHunterSpatial.insert(b.x, b.y, b);
+  }
+  for (let hi = 0; hi < hunterBees.length; hi++) {
+    const h = hunterBees[hi];
+    beeHunterSpatial.insert(h.x, h.y, h);
+  }
+
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const bullet = bullets[i];
+
+    bullet.x += bullet.vx * dtStep;
+    bullet.y += bullet.vy * dtStep;
+    const mx = bullet.vx * dtStep;
+    const my = bullet.vy * dtStep;
+    bullet.distanceTraveled += Math.sqrt(mx * mx + my * my);
+
     if (bullet.distanceTraveled >= bullet.maxDistance ||
         bullet.x < 0 || bullet.x > w || bullet.y < 0 || bullet.y > h) {
-      return false;
+      swapRemoveBullet(i);
+      continue;
     }
-    
-    // Check collision with user for hive bullets
+
     if (bullet.isHiveBullet && userIcon) {
-      const distToUser = Math.hypot(bullet.x - userIcon.x, bullet.y - userIcon.y);
-      if (distToUser < bullet.radius + userIcon.radius) {
+      const dx = bullet.x - userIcon.x;
+      const dy = bullet.y - userIcon.y;
+      const r = bullet.radius + userIcon.radius;
+      if (dx * dx + dy * dy < r * r) {
         const isInvincible = userIcon.invincibilityTimer > 0;
         if (!isInvincible) {
           const hiveBulletDamage = 40;
@@ -663,14 +693,16 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
             playHealthHitSound();
           }
         }
-        return false;
+        swapRemoveBullet(i);
+        continue;
       }
     }
-    
-    // Check collision with user for hunter lasers
+
     if (bullet.isHunterLaser && userIcon) {
-      const distToUser = Math.hypot(bullet.x - userIcon.x, bullet.y - userIcon.y);
-      if (distToUser < bullet.radius + userIcon.radius) {
+      const dx = bullet.x - userIcon.x;
+      const dy = bullet.y - userIcon.y;
+      const r = bullet.radius + userIcon.radius;
+      if (dx * dx + dy * dy < r * r) {
         const isInvincible = userIcon.invincibilityTimer > 0;
         if (!isInvincible) {
           if (userIcon.shield > 0) {
@@ -685,39 +717,33 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
             playHealthHitSound();
           }
         }
-        return false;
+        swapRemoveBullet(i);
+        continue;
       }
     }
-    
-    // User bullets collision with cells and bees
+
     if (!bullet.isHiveBullet && !bullet.isHunterLaser) {
       const hiveProtected = (now - gameStartTime) < HIVE_PROTECTION_DURATION;
-      
+
       const hitCell = getCellAtPoint(bullet.x, bullet.y);
       if (hitCell) {
         const cellCenter = hexToPixel(hitCell.q, hitCell.r);
         const cellSize = HEX_SIZE * hitCell.buildProg;
-        
-        // Hit bees in cell
-        let beesHit = false;
-        for (let i = bees.length - 1; i >= 0; i--) {
-          const bee = bees[i];
+
+        for (let j = bees.length - 1; j >= 0; j--) {
+          const bee = bees[j];
           if (isPointInHex(bee.x, bee.y, cellCenter.x, cellCenter.y, cellSize)) {
-            beesHit = true;
             bee.hp -= 1;
-            // Spawn impact particles at bee location
             spawnImpactParticles(bee.x, bee.y, 'bulletBee', bullet.angle);
             if (bee.hp <= 0) {
               createBeeExplosion(bee.x, bee.y);
-              bees.splice(i, 1);
+              bees.splice(j, 1);
               addDestroyedBees(1);
             }
           }
         }
-        
-        // Damage cell if not protected
+
         if (!hiveProtected) {
-          // Spawn cell impact particles
           spawnImpactParticles(bullet.x, bullet.y, 'bulletCell', bullet.angle);
           if (hitCell.honey > 0) {
             hitCell.honey = Math.max(0, hitCell.honey - HONEY_DAMAGE_PER_HIT);
@@ -733,53 +759,71 @@ export function updateBullets(dt, now, userIcon, gameStartTime, HIVE_PROTECTION_
             }
           }
         }
-        
-        return false;
+
+        swapRemoveBullet(i);
+        continue;
       }
-      
-      // Check collision with bees
-      for (let i = bees.length - 1; i >= 0; i--) {
-        const bee = bees[i];
-        const dist = Math.hypot(bullet.x - bee.x, bullet.y - bee.y);
-        if (dist < bullet.radius + 4) {
-          bee.hp -= 1;
-          // Spawn impact particles
-          spawnImpactParticles(bullet.x, bullet.y, 'bulletBee', bullet.angle);
-          if (bee.hp <= 0) {
-            createBeeExplosion(bee.x, bee.y);
-            bees.splice(i, 1);
-            addDestroyedBees(1);
+
+      let hitEnemy = false;
+      beeHunterSpatial.forEachNearby(
+        bullet.x,
+        bullet.y,
+        (enemy) => {
+          if (hitEnemy) return;
+          if (enemy.hp <= 0) return;
+
+          if (enemy.state !== undefined) {
+            const dx = bullet.x - enemy.x;
+            const dy = bullet.y - enemy.y;
+            const rr = bullet.radius + BEE_BULLET_HIT_R;
+            if (dx * dx + dy * dy >= rr * rr) return;
+            enemy.hp -= 1;
+            spawnImpactParticles(bullet.x, bullet.y, 'bulletBee', bullet.angle);
+            if (enemy.hp <= 0) {
+              for (let j = bees.length - 1; j >= 0; j--) {
+                if (bees[j] === enemy) {
+                  createBeeExplosion(enemy.x, enemy.y);
+                  bees.splice(j, 1);
+                  addDestroyedBees(1);
+                  break;
+                }
+              }
+            }
+            hitEnemy = true;
+            return;
           }
-          return false;
-        }
-      }
-      
-      // Check collision with hunter bees
-      for (let i = hunterBees.length - 1; i >= 0; i--) {
-        const hunter = hunterBees[i];
-        const dist = Math.hypot(bullet.x - hunter.x, bullet.y - hunter.y);
-        if (dist < bullet.radius + hunter.size) {
-          if (hunter.shield > 0) {
-            hunter.shield = Math.max(0, hunter.shield - 15);
-            // Shield impact
+
+          const dx = bullet.x - enemy.x;
+          const dy = bullet.y - enemy.y;
+          const rr = bullet.radius + enemy.size;
+          if (dx * dx + dy * dy >= rr * rr) return;
+          if (enemy.shield > 0) {
+            enemy.shield = Math.max(0, enemy.shield - 15);
             spawnImpactParticles(bullet.x, bullet.y, 'bulletShield', bullet.angle);
           } else {
-            hunter.hp -= 1;
-            // Armor impact
+            enemy.hp -= 1;
             spawnImpactParticles(bullet.x, bullet.y, 'bulletArmor', bullet.angle);
-            if (hunter.hp <= 0) {
-              createHunterExplosion(hunter.x, hunter.y);
-              hunterBees.splice(i, 1);
-              addDestroyedBees(5);
+            if (enemy.hp <= 0) {
+              for (let j = hunterBees.length - 1; j >= 0; j--) {
+                if (hunterBees[j] === enemy) {
+                  createHunterExplosion(enemy.x, enemy.y);
+                  hunterBees.splice(j, 1);
+                  addDestroyedBees(5);
+                  break;
+                }
+              }
             }
           }
-          return false;
-        }
+          hitEnemy = true;
+        },
+        BEE_HUNTER_GRID_RANGE
+      );
+
+      if (hitEnemy) {
+        swapRemoveBullet(i);
       }
     }
-    
-    return true;
-  });
+  }
 }
 
 // Update weapon effects
@@ -1059,7 +1103,7 @@ function pointToLineDistance(px, py, x1, y1, x2, y2) {
 
 // Reset combat state
 export function resetCombat() {
-  bullets = [];
+  resetBullets();
   freezeBombs = [];
   electricBlasts = [];
   weapons.freeze.count = 3;
@@ -1085,5 +1129,3 @@ export function resetCombat() {
   lastDefensiveDropTime = 0;
 }
 
-// Setter for bullets
-export function setBullets(newBullets) { bullets = newBullets; }
