@@ -1,6 +1,14 @@
 # Bee Brave (pure code)
 
 Canvas HTML5 game: pure **ES modules**, no framework, no bundler.
+<img width="1652" height="727" alt="Screen Shot 2026-04-24 at 9 43 33 AM" src="https://github.com/user-attachments/assets/bf6223cd-34f1-40aa-a592-5012f082408c" />
+
+## Screen Shots
+<img width="1466" height="720" alt="Screen Shot 2026-04-24 at 9 45 23 AM" src="https://github.com/user-attachments/assets/65e660b9-a506-447d-9536-bfa3aec77727" />
+<img width="1466" height="720" alt="Screen Shot 2026-04-24 at 9 45 23 AM" src="https://github.com/user-attachments/assets/6aa26a7b-43b8-48ef-a840-e46173e501b9" />
+<img width="1617" height="781" alt="Screen Shot 2026-04-24 at 9 44 14 AM" src="https://github.com/user-attachments/assets/af82e77f-a743-4e1a-aba1-c00228b0b124" />
+<img width="1005" height="690" alt="Screen Shot 2026-04-24 at 9 45 46 AM" src="https://github.com/user-attachments/assets/f8868086-408e-4eea-b487-891dc4f832d6" />
+
 
 ## About the game
 
